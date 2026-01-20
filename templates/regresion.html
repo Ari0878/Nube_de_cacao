@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regresión Lineal | Nube de Cacao</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        .metric-card {
+            background: linear-gradient(135deg, var(--coffee-light), var(--gold-primary));
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .prediction-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-premium py-3">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/dashboard">
+                <i class="fa-solid fa-mug-hot me-2"></i> Nube de Cacao
+            </a>
+            <a href="/dashboard" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                <i class="fa-solid fa-arrow-left me-2"></i> Volver
+            </a>
+        </div>
+    </nav>
+
+    <main class="container mt-5 pt-4">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold" style="color: var(--coffee-dark);">Regresión Lineal</h2>
+            <p class="lead" style="color: var(--text-light);">Predicción de ventas usando Machine Learning</p>
+        </div>
+
+        {% if not modelo %}
+        <div class="alert alert-warning text-center">
+            <i class="fa-solid fa-exclamation-triangle me-2"></i>
+            No hay suficientes datos para entrenar el modelo. Registra al menos <strong>2 ventas</strong>.
+        </div>
+        {% else %}
+
+        <div class="alert alert-info text-center mb-4">
+            <i class="fa-solid fa-database me-2"></i>
+            Modelo entrenado con <strong>{{ modelo.num_datos }}</strong> ventas
+        </div>
+
+        <div class="row g-4 mb-5">
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="mb-2">RMSE</div>
+                    <div class="metric-value">${{ "%.2f"|format(modelo.rmse) }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="mb-2">MAE</div>
+                    <div class="metric-value">${{ "%.2f"|format(modelo.mae) }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="mb-2">R² Score</div>
+                    <div class="metric-value">{{ "%.4f"|format(modelo.r2) }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="prediction-card mb-5">
+            <h4 class="mb-3"><i class="fa-solid fa-function me-2" style="color: var(--gold-primary);"></i> Ecuación del
+                Modelo</h4>
+            <div class="alert alert-info">
+                <code>Total = {{ "%.2f"|format(modelo.pendiente) }} × Cantidad + {{ "%.2f"|format(modelo.intercepto) }}</code>
+            </div>
+        </div>
+
+        <div class="prediction-card mb-5">
+            <h4 class="mb-4"><i class="fa-solid fa-wand-magic-sparkles me-2" style="color: var(--gold-primary);"></i>
+                Hacer Predicción</h4>
+            <form method="POST">
+                <div class="row align-items-end">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Cantidad de productos</label>
+                        <input type="number" name="cantidad" class="form-control form-control-lg" min="1" step="1"
+                            placeholder="Ingresa la cantidad" required>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-lg w-100"
+                            style="background: var(--gold-primary); color: white;">
+                            <i class="fa-solid fa-calculator me-2"></i> Predecir
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            {% if prediccion %}
+            <div class="alert alert-success mt-4 text-center">
+                <h5 class="mb-2">Predicción de Total</h5>
+                <h2 class="fw-bold">${{ "%.2f"|format(prediccion) }}</h2>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="prediction-card mb-5">
+            <h4 class="mb-4"><i class="fa-solid fa-chart-scatter me-2" style="color: var(--gold-primary);"></i>
+                Visualización del Modelo</h4>
+            <div id="grafico-regresion"></div>
+        </div>
+
+        <div class="prediction-card mb-5">
+            <h4 class="mb-4"><i class="fa-solid fa-chart-column me-2" style="color: var(--gold-primary);"></i> Análisis
+                de Residuales</h4>
+            <div id="grafico-residuales"></div>
+        </div>
+
+        <script>
+            var datosX = {{ modelo.X | tojson }};
+            var datosY = {{ modelo.y | tojson }};
+            var datosPred = {{ modelo.y_pred | tojson }};
+
+            var minX = Math.min.apply(null, datosX);
+            var maxX = Math.max.apply(null, datosX);
+            var minY = Math.min.apply(null, datosY);
+            var maxY = Math.max.apply(null, datosY);
+
+            var rangoX = maxX - minX;
+            var rangoY = maxY - minY;
+            var margenX = rangoX * 0.1;
+            var margenY = rangoY * 0.1;
+
+            var traceReal = {
+                x: datosX,
+                y: datosY,
+                mode: 'markers',
+                type: 'scatter',
+                name: 'Datos reales',
+                marker: {
+                    size: 12,
+                    color: '#C5A059',
+                    line: { color: '#8B7355', width: 1 }
+                }
+            };
+
+            var tracePred = {
+                x: datosX,
+                y: datosPred,
+                mode: 'lines',
+                type: 'scatter',
+                name: 'Línea de regresión',
+                line: { color: '#5a3e2b', width: 3 }
+            };
+
+            var layout1 = {
+                title: { text: 'Valor Real vs Predicho', font: { size: 18, color: '#5a3e2b' } },
+                xaxis: { title: 'Cantidad', range: [minX - margenX, maxX + margenX], gridcolor: '#e0e0e0' },
+                yaxis: { title: 'Total ($)', range: [minY - margenY, maxY + margenY], gridcolor: '#e0e0e0' },
+                showlegend: true,
+                legend: { x: 0.02, y: 0.98, bgcolor: 'rgba(255,255,255,0.8)', bordercolor: '#C5A059', borderwidth: 1 },
+                plot_bgcolor: '#fafafa',
+                paper_bgcolor: 'white',
+                autosize: true
+            };
+
+            var config1 = { responsive: true, displayModeBar: true, displaylogo: false };
+
+            Plotly.newPlot('grafico-regresion', [traceReal, tracePred], layout1, config1);
+
+            var residuales = datosY.map(function (val, idx) { return val - datosPred[idx]; });
+
+            var minRes = Math.min.apply(null, residuales);
+            var maxRes = Math.max.apply(null, residuales);
+            var rangoRes = maxRes - minRes;
+            var margenRes = rangoRes * 0.15;
+
+            var traceRes = {
+                x: datosPred,
+                y: residuales,
+                mode: 'markers',
+                type: 'scatter',
+                name: 'Residuales',
+                marker: { size: 10, color: '#C5A059', line: { color: '#8B7355', width: 1 } }
+            };
+
+            var minPred = Math.min.apply(null, datosPred);
+            var maxPred = Math.max.apply(null, datosPred);
+
+            var lineaRef = {
+                x: [minPred, maxPred],
+                y: [0, 0],
+                mode: 'lines',
+                type: 'scatter',
+                name: 'Referencia (0)',
+                line: { color: 'red', width: 2, dash: 'dash' }
+            };
+
+            var layout2 = {
+                title: { text: 'Distribución de Errores Residuales', font: { size: 18, color: '#5a3e2b' } },
+                xaxis: { title: 'Predicción ($)', gridcolor: '#e0e0e0' },
+                yaxis: { title: 'Error (Real - Predicho)', range: [minRes - margenRes, maxRes + margenRes], gridcolor: '#e0e0e0' },
+                showlegend: true,
+                legend: { x: 0.02, y: 0.98, bgcolor: 'rgba(255,255,255,0.8)', bordercolor: '#C5A059', borderwidth: 1 },
+                plot_bgcolor: '#fafafa',
+                paper_bgcolor: 'white',
+                autosize: true
+            };
+
+            var config2 = { responsive: true, displayModeBar: true, displaylogo: false };
+
+            Plotly.newPlot('grafico-residuales', [lineaRef, traceRes], layout2, config2);
+
+            window.addEventListener('resize', function () {
+                Plotly.Plots.resize('grafico-regresion');
+                Plotly.Plots.resize('grafico-residuales');
+            });
+        </script>
+        {% endif %}
+    </main>
+
+    <button id="theme-toggle" title="Cambiar tema"
+        style="position: fixed; bottom: 25px; right: 25px; width: 50px; height: 50px; border-radius: 50%; border: none; background: var(--gold-primary); color: #fff; font-size: 22px; box-shadow: 0 6px 15px rgba(0,0,0,0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10000;">🌓</button>
+
+    <script>
+        var toggleBtn = document.getElementById('theme-toggle');
+        var savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+        toggleBtn.addEventListener('click', function () {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

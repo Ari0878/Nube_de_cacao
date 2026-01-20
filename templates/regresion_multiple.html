@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regresión Lineal Múltiple | Nube de Cacao</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        .metric-card {
+            background: linear-gradient(135deg, var(--coffee-light), var(--gold-primary));
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .card-premium {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+
+        .coef-badge {
+            background: var(--gold-primary);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            display: inline-block;
+            margin: 0.25rem;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-premium py-3">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/dashboard">
+                <i class="fa-solid fa-mug-hot me-2"></i> Nube de Cacao
+            </a>
+            <a href="/dashboard" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                <i class="fa-solid fa-arrow-left me-2"></i> Volver
+            </a>
+        </div>
+    </nav>
+
+    <main class="container mt-5 pt-4">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold" style="color: var(--coffee-dark);">Regresión Lineal Múltiple</h2>
+            <p class="lead" style="color: var(--text-light);">Análisis de ventas usando datos reales de MongoDB</p>
+        </div>
+
+        {% if not modelo %}
+        <div class="alert alert-warning text-center">
+            <i class="fa-solid fa-exclamation-triangle me-2"></i>
+            No hay suficientes datos para entrenar el modelo. Registra al menos 5 ventas.
+        </div>
+        {% else %}
+
+        <!-- Información del modelo -->
+        <div class="alert alert-info text-center mb-4">
+            <i class="fa-solid fa-database me-2"></i>
+            Modelo entrenado con <strong>{{ modelo.num_datos }}</strong> ventas reales
+        </div>
+
+        <!-- Métricas -->
+        <div class="row g-4 mb-5">
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="mb-2">Intercepto</div>
+                    <div class="metric-value">${{ "%.2f"|format(modelo.intercepto) }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="mb-2">R² Score</div>
+                    <div class="metric-value">{{ "%.4f"|format(modelo.r2) }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="mb-2">RMSE</div>
+                    <div class="metric-value">${{ "%.2f"|format(modelo.rmse) }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coeficientes -->
+        <div class="card-premium mb-5">
+            <h4 class="mb-3"><i class="fa-solid fa-function me-2" style="color: var(--gold-primary);"></i> Coeficientes
+                del Modelo</h4>
+            <div class="text-center">
+                <div class="coef-badge">
+                    <i class="fa-solid fa-hashtag"></i> Cantidad: {{ "%.2f"|format(modelo.coef_cantidad) }}
+                </div>
+                <div class="coef-badge">
+                    <i class="fa-solid fa-mug-hot"></i> Tipo: {{ "%.2f"|format(modelo.coef_tipo) }}
+                </div>
+                <div class="coef-badge">
+                    <i class="fa-solid fa-calendar-day"></i> Día: {{ "%.2f"|format(modelo.coef_dia) }}
+                </div>
+            </div>
+            <div class="alert alert-info mt-3 mb-0">
+                <small><code>Total = {{ "%.2f"|format(modelo.intercepto) }} + {{ "%.2f"|format(modelo.coef_cantidad) }}×Cantidad + 
+                    {{ "%.2f"|format(modelo.coef_tipo) }}×TipoCódigo + 
+                    {{ "%.2f"|format(modelo.coef_dia) }}×DíaSemana</code></small>
+            </div>
+        </div>
+
+        <!-- Predicción interactiva -->
+        <div class="card-premium mb-5">
+            <h4 class="mb-4"><i class="fa-solid fa-wand-magic-sparkles me-2" style="color: var(--gold-primary);"></i>
+                Predecir Total de Venta</h4>
+            <form method="POST">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Cantidad</label>
+                        <input type="number" name="cantidad" class="form-control form-control-lg" min="1" max="100"
+                            placeholder="Ej: 5" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Tipo de Producto</label>
+                        <select name="tipo" class="form-select form-select-lg" required>
+                            {% for codigo, tipo in modelo.tipos_disponibles.items() %}
+                            <option value="{{ tipo }}">{{ tipo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Día de la Semana</label>
+                        <select name="dia_semana" class="form-select form-select-lg" required>
+                            <option value="0">Lunes</option>
+                            <option value="1">Martes</option>
+                            <option value="2">Miércoles</option>
+                            <option value="3">Jueves</option>
+                            <option value="4">Viernes</option>
+                            <option value="5">Sábado</option>
+                            <option value="6">Domingo</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-lg mt-3" style="background: var(--gold-primary); color: white;">
+                    <i class="fa-solid fa-calculator me-2"></i> Calcular Total
+                </button>
+            </form>
+
+            {% if prediccion %}
+            <div class="alert alert-success mt-4 text-center">
+                <h5 class="mb-2">Total Estimado</h5>
+                <h2 class="fw-bold">${{ "%.2f"|format(prediccion) }} USD</h2>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Visualización 3D -->
+        <div class="card-premium mb-5">
+            <h4 class="mb-4"><i class="fa-solid fa-cube me-2" style="color: var(--gold-primary);"></i> Visualización
+                Interactiva 3D</h4>
+            <p class="text-muted">Relación entre Cantidad, Tipo de Producto y Total de Venta</p>
+            <div id="grafico-3d"></div>
+        </div>
+
+        <script>
+            var cantidad = {{ modelo.cantidad | tojson }};
+            var tipo_codigo = {{ modelo.tipo_codigo | tojson }};
+            var total = {{ modelo.total | tojson }};
+            var gridCantidad = {{ modelo.grid_cantidad | tojson }};
+            var gridTipo = {{ modelo.grid_tipo | tojson }};
+            var gridTotal = {{ modelo.grid_total | tojson }};
+
+            var tracePuntos = {
+                x: cantidad,
+                y: tipo_codigo,
+                z: total,
+                mode: 'markers',
+                type: 'scatter3d',
+                name: 'Datos Reales',
+                marker: {
+                    size: 5,
+                    color: '#C5A059',
+                    opacity: 0.8,
+                    line: { color: '#8B7355', width: 1 }
+                }
+            };
+
+            var traceSuperficie = {
+                x: gridCantidad,
+                y: gridTipo,
+                z: gridTotal,
+                type: 'surface',
+                name: 'Plano de Regresión',
+                colorscale: [
+                    [0, '#5a3e2b'],
+                    [0.5, '#C5A059'],
+                    [1, '#f5deb3']
+                ],
+                opacity: 0.7,
+                showscale: false
+            };
+
+            var layout = {
+                title: {
+                    text: 'Regresión Lineal Múltiple - Ventas Reales',
+                    font: { size: 20, color: '#5a3e2b' }
+                },
+                scene: {
+                    xaxis: { title: 'Cantidad' },
+                    yaxis: { title: 'Tipo (código)' },
+                    zaxis: { title: 'Total ($)' },
+                    camera: {
+                        eye: { x: 1.5, y: -1.5, z: 1.2 }
+                    }
+                },
+                showlegend: true,
+                legend: {
+                    x: 0.02,
+                    y: 0.98,
+                    bgcolor: 'rgba(255,255,255,0.8)',
+                    bordercolor: '#C5A059',
+                    borderwidth: 1
+                },
+                autosize: true,
+                height: 700
+            };
+
+            var config = {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false
+            };
+
+            Plotly.newPlot('grafico-3d', [tracePuntos, traceSuperficie], layout, config);
+
+            window.addEventListener('resize', function () {
+                Plotly.Plots.resize('grafico-3d');
+            });
+        </script>
+        {% endif %}
+    </main>
+
+    <button id="theme-toggle" title="Cambiar tema"
+        style="position: fixed; bottom: 25px; right: 25px; width: 50px; height: 50px; border-radius: 50%; border: none; background: var(--gold-primary); color: #fff; font-size: 22px; box-shadow: 0 6px 15px rgba(0,0,0,0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10000;">🌓</button>
+
+    <script>
+        var toggleBtn = document.getElementById('theme-toggle');
+        var savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+        toggleBtn.addEventListener('click', function () {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

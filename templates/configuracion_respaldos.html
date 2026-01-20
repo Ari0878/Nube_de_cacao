@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Configuración de Respaldos | Nube de Cacao</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .config-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            margin-bottom: 25px;
+            overflow: hidden;
+        }
+
+        .config-header {
+            background: linear-gradient(135deg, var(--gold-primary) 0%, var(--coffee-light) 100%);
+            color: white;
+            padding: 20px 30px;
+            font-weight: 600;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: #28a745;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(26px);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .timeline-item {
+            border-left: 3px solid var(--gold-primary);
+            padding-left: 20px;
+            padding-bottom: 20px;
+            position: relative;
+        }
+
+        .timeline-item:before {
+            content: "";
+            width: 12px;
+            height: 12px;
+            background: var(--gold-primary);
+            border-radius: 50%;
+            position: absolute;
+            left: -7.5px;
+            top: 5px;
+        }
+
+        .timeline-item:last-child {
+            border-left: none;
+            padding-bottom: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="clouds-container">
+        <div class="cloud cloud-1"></div>
+        <div class="cloud cloud-2"></div>
+        <div class="cloud cloud-3"></div>
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-premium py-3 mb-5">
+        <div class="container">
+            <a href="/respaldos" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                <i class="fa-solid fa-arrow-left me-2"></i> Volver
+            </a>
+            <span class="navbar-brand ms-auto fw-bold" style="letter-spacing: 1px;">
+                <i class="fa-solid fa-clock me-2"></i> Respaldos Automáticos
+            </span>
+        </div>
+    </nav>
+
+    <div class="container mb-5">
+        <!-- Estado Actual -->
+        <div class="text-center mb-4">
+            <div class="d-inline-block p-3 rounded-circle mb-3"
+                style="background: var(--bg-cream); box-shadow: 0 5px 15px rgba(0,0,0,0.05);">
+                <i class="fa-solid fa-robot fa-3x" style="color: var(--coffee-dark);"></i>
+            </div>
+            <h2 class="fw-bold mb-3" style="color: var(--coffee-dark);">Respaldos Automáticos</h2>
+            <div class="mb-3">
+                {% if config.activo %}
+                <span class="status-badge status-active">
+                    <i class="fa-solid fa-circle-check me-2"></i>Activo
+                </span>
+                {% else %}
+                <span class="status-badge status-inactive">
+                    <i class="fa-solid fa-circle-xmark me-2"></i>Inactivo
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Formulario de Configuración -->
+            <div class="col-lg-8">
+                <div class="config-card">
+                    <div class="config-header">
+                        <i class="fa-solid fa-gear me-2"></i> Configuración
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST" action="/respaldos/configuracion/guardar">
+                            <!-- Activar/Desactivar -->
+                            <div class="row mb-4">
+                                <div class="col-md-8">
+                                    <h5 class="fw-bold mb-2">Activar Respaldos Automáticos</h5>
+                                    <p class="text-muted small mb-0">Los respaldos se ejecutarán según el horario configurado</p>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <label class="switch">
+                                        <input type="checkbox" name="activo" {% if config.activo %}checked{% endif %}>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <!-- Hora de Ejecución -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">
+                                    <i class="fa-solid fa-clock me-2 text-primary"></i>Hora de Ejecución
+                                </label>
+                                <input type="time" class="form-control" name="hora" value="{{ config.hora }}" required>
+                                <small class="text-muted">Formato 24 horas (ej: 14:30 para 2:30 PM)</small>
+                            </div>
+
+                            <!-- Frecuencia -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">
+                                    <i class="fa-solid fa-calendar me-2 text-primary"></i>Frecuencia
+                                </label>
+                                <select class="form-select" name="frecuencia" id="frecuencia" required>
+                                    <option value="diario" {% if config.frecuencia=='diario' %}selected{% endif %}>Diario</option>
+                                    <option value="semanal" {% if config.frecuencia=='semanal' %}selected{% endif %}>Semanal</option>
+                                    <option value="mensual" {% if config.frecuencia=='mensual' %}selected{% endif %}>Mensual</option>
+                                </select>
+                            </div>
+
+                            <!-- Día de la Semana (solo para semanal) -->
+                            <div class="mb-4" id="div_dia_semana" style="display: none;">
+                                <label class="form-label fw-bold">Día de la Semana</label>
+                                <select class="form-select" name="dia_semana">
+                                    <option value="monday" {% if config.dia_semana=='monday' %}selected{% endif %}>Lunes</option>
+                                    <option value="tuesday" {% if config.dia_semana=='tuesday' %}selected{% endif %}>Martes</option>
+                                    <option value="wednesday" {% if config.dia_semana=='wednesday' %}selected{% endif %}>Miércoles</option>
+                                    <option value="thursday" {% if config.dia_semana=='thursday' %}selected{% endif %}>Jueves</option>
+                                    <option value="friday" {% if config.dia_semana=='friday' %}selected{% endif %}>Viernes</option>
+                                    <option value="saturday" {% if config.dia_semana=='saturday' %}selected{% endif %}>Sábado</option>
+                                    <option value="sunday" {% if config.dia_semana=='sunday' %}selected{% endif %}>Domingo</option>
+                                </select>
+                            </div>
+
+                            <!-- Día del Mes (solo para mensual) -->
+                            <div class="mb-4" id="div_dia_mes" style="display: none;">
+                                <label class="form-label fw-bold">Día del Mes</label>
+                                <input type="number" class="form-control" name="dia_mes" min="1" max="28" value="{{ config.dia_mes }}">
+                                <small class="text-muted">Número del día (1-28)</small>
+                            </div>
+
+                            <!-- Formato de Respaldo -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">
+                                    <i class="fa-solid fa-file-export me-2 text-primary"></i>Formato de Exportación
+                                </label>
+                                <select class="form-select" name="formato" required>
+                                    <option value="todos" {% if config.formato=='todos' %}selected{% endif %}>Todos los formatos (Excel, PDF, SQL)</option>
+                                    <option value="excel" {% if config.formato=='excel' %}selected{% endif %}>Solo Excel</option>
+                                    <option value="pdf" {% if config.formato=='pdf' %}selected{% endif %}>Solo PDF</option>
+                                    <option value="sql" {% if config.formato=='sql' %}selected{% endif %}>Solo SQL</option>
+                                </select>
+                            </div>
+
+                            <hr>
+
+                            <!-- Limpieza Automática -->
+                            <div class="row mb-4">
+                                <div class="col-md-8">
+                                    <h5 class="fw-bold mb-2">Limpieza Automática</h5>
+                                    <p class="text-muted small mb-0">Eliminar respaldos antiguos automáticamente</p>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <label class="switch">
+                                        <input type="checkbox" name="limpiar_antiguos" {% if config.limpiar_antiguos %}checked{% endif %}>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">Días a Retener</label>
+                                <input type="number" class="form-control" name="dias_retener" min="7" max="365" value="{{ config.dias_retener }}">
+                                <small class="text-muted">Los respaldos más antiguos que este número de días serán eliminados</small>
+                            </div>
+
+                            <!-- Botones -->
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary btn-lg rounded-pill">
+                                    <i class="fa-solid fa-save me-2"></i>Guardar Configuración
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Ejecutar Ahora -->
+                        <div class="mt-4 p-3 bg-light rounded">
+                            <h6 class="fw-bold mb-3">
+                                <i class="fa-solid fa-play-circle me-2 text-success"></i>Ejecutar Respaldo Manual
+                            </h6>
+                            <form method="POST" action="/respaldos/ejecutar-ahora" class="row g-2">
+                                <div class="col-md-8">
+                                    <select class="form-select" name="formato" required>
+                                        <option value="todos">Todos los formatos</option>
+                                        <option value="excel">Solo Excel</option>
+                                        <option value="pdf">Solo PDF</option>
+                                        <option value="sql">Solo SQL</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="submit" class="btn btn-success w-100">
+                                        <i class="fa-solid fa-play me-2"></i>Ejecutar
+                                    </button>
+                                </div>
+                            </form>
+                            <small class="text-muted d-block mt-2">
+                                <i class="fa-solid fa-info-circle me-1"></i>
+                                Los archivos se guardarán en la carpeta "backups_automaticos"
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel Derecho -->
+            <div class="col-lg-4">
+                <!-- Próximos Respaldos -->
+                <div class="config-card">
+                    <div class="config-header">
+                        <i class="fa-solid fa-calendar-days me-2"></i> Próximos Respaldos
+                    </div>
+                    <div class="card-body p-4">
+                        {% if proximos|length > 0 %}
+                        <div class="timeline">
+                            {% for proximo in proximos %}
+                            <div class="timeline-item">
+                                <div class="d-flex align-items-start mb-2">
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold mb-1" style="color: var(--coffee-dark);">
+                                            {{ proximo.tarea }}
+                                        </div>
+                                        <div class="text-muted small">
+                                            <i class="fa-solid fa-clock me-1"></i>
+                                            {{ proximo.proxima_ejecucion }}
+                                        </div>
+                                    </div>
+                                    <i class="fa-solid fa-circle-check text-success ms-2"></i>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-3">
+                            <i class="fa-solid fa-calendar-xmark fa-2x mb-2"></i>
+                            <p class="small mb-0">No hay respaldos programados</p>
+                            <p class="small text-muted">Activa los respaldos automáticos para comenzar</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Historial Reciente -->
+                <div class="config-card">
+                    <div class="config-header">
+                        <i class="fa-solid fa-history me-2"></i> Historial Reciente
+                    </div>
+                    <div class="card-body p-4" style="max-height: 400px; overflow-y: auto;">
+                        {% if historial|length > 0 %}
+                        <div class="list-group list-group-flush">
+                            {% for item in historial %}
+                            <div class="list-group-item px-0 py-2">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <small class="text-muted d-block">{{ item.fecha }}</small>
+                                        <span class="badge bg-primary small">{{ item.formato }}</span>
+                                    </div>
+                                    <i class="fa-solid fa-circle-check text-success"></i>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-3">
+                            <i class="fa-solid fa-box-open fa-2x mb-2"></i>
+                            <p class="small mb-0">Sin historial de respaldos</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Mostrar/ocultar campos según frecuencia
+        document.getElementById('frecuencia').addEventListener('change', function () {
+            const frecuencia = this.value;
+            const divSemana = document.getElementById('div_dia_semana');
+            const divMes = document.getElementById('div_dia_mes');
+
+            divSemana.style.display = frecuencia === 'semanal' ? 'block' : 'none';
+            divMes.style.display = frecuencia === 'mensual' ? 'block' : 'none';
+        });
+
+        // Ejecutar al cargar la página
+        document.addEventListener('DOMContentLoaded', function () {
+            const evento = new Event('change');
+            document.getElementById('frecuencia').dispatchEvent(evento);
+        });
+    </script>
+</body>
+
+</html>
