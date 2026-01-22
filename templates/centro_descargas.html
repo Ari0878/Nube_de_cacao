@@ -174,6 +174,12 @@
                                     <i class="fa-solid fa-download me-2"></i>
                                     Descargar
                                 </button>
+                            <button class="btn btn-outline-danger rounded-pill px-3 shadow"
+        onclick="event.stopPropagation(); eliminarArchivo('{{ archivo.nombre }}')">
+    <i class="fa-solid fa-trash me-1"></i>
+    Eliminar
+</button>
+
                             </div>
                         </div>
                     </div>
@@ -333,5 +339,30 @@
             location.reload();
         }, 30000);
     </script>
+    <script>
+function eliminarArchivo(filename) {
+    if (!confirm(`¿Seguro que deseas eliminar el respaldo "${filename}"?\nEsta acción no se puede deshacer.`)) {
+        return;
+    }
+
+    fetch(`/respaldos/eliminar/${filename}`, {
+        method: 'DELETE'
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const card = document.querySelector(`[data-filename="${filename}"]`);
+            if (card) card.remove();
+            mostrarNotificacion('Respaldo eliminado correctamente', 'success');
+        } else {
+            mostrarNotificacion(data.error || 'Error al eliminar archivo', 'danger');
+        }
+    })
+    .catch(() => {
+        mostrarNotificacion('Error de conexión', 'danger');
+    });
+}
+</script>
+
 </body>
 </html>

@@ -25,6 +25,45 @@ scheduler = BackgroundScheduler()
 scheduler.start()
 
 
+def obtener_todas_colecciones():
+    """
+    Obtiene todas las colecciones de la base de datos
+    Retorna: diccionario con {nombre_coleccion: datos}
+    """
+    colecciones = {}
+    
+    # Verificar si la conexión a la base de datos está disponible
+    if db is None:
+        print("Error: No hay conexión a la base de datos")
+        return colecciones
+    
+    try:
+        # Listar todas las colecciones en la base de datos
+        nombres_colecciones = db.list_collection_names()
+        
+        for nombre in nombres_colecciones:
+            # Saltar colecciones del sistema
+            if nombre.startswith('system.'):
+                continue
+                
+            coleccion = db[nombre]
+            datos = list(coleccion.find({}))
+            
+            # Convertir ObjectId a string y fechas a ISO
+            for documento in datos:
+                documento["_id"] = str(documento["_id"])
+                for key, value in documento.items():
+                    if isinstance(value, datetime):
+                        documento[key] = value.isoformat()
+            
+            colecciones[nombre] = datos
+    
+    except Exception as e:
+        print(f"Error al obtener colecciones: {e}")
+    
+    return colecciones
+
+
 def cargar_config():
     """Carga la configuración de respaldos automáticos"""
     if os.path.exists(CONFIG_FILE):
@@ -40,7 +79,8 @@ def cargar_config():
         "dia_mes": 1,  # para mensual
         "formato": "todos",  # todos, excel, pdf, sql
         "limpiar_antiguos": True,
-        "dias_retener": 30
+        "dias_retener": 30,
+        "tipo_respaldo": "completo"  # completo, incremental, diferencial
     }
 
 
@@ -64,14 +104,16 @@ def guardar_historial(historial):
         json.dump(historial, f, ensure_ascii=False, indent=2)
 
 
-def agregar_historial(formato, cantidad_registros, archivos_generados=None, estado="exitoso"):
+def agregar_historial(tipo_respaldo, formato, cantidad_registros, colecciones_respaldadas, archivos_generados=None, estado="exitoso"):
     """Agrega una entrada al historial"""
     historial = cargar_historial()
     
     entrada = {
         "fecha": datetime.now().isoformat(),
+        "tipo_respaldo": tipo_respaldo,
         "formato": formato,
         "cantidad_registros": cantidad_registros,
+        "colecciones": colecciones_respaldadas,
         "archivos": archivos_generados or [],
         "estado": estado
     }
@@ -104,6 +146,9 @@ def obtener_proximos_respaldos():
     
     ahora = datetime.now()
     
+    tipo_respaldo = config.get("tipo_respaldo", "completo").capitalize()
+    formato = config.get("formato", "todos").upper()
+    
     if config["frecuencia"] == "diario":
         # Próximos 5 días
         for i in range(5):
@@ -112,7 +157,7 @@ def obtener_proximos_respaldos():
             
             if fecha > ahora:
                 proximos.append({
-                    "tarea": f"Respaldo Diario ({config['formato'].upper()})",
+                    "tarea": f"Respaldo {tipo_respaldo} Diario ({formato})",
                     "proxima_ejecucion": fecha.strftime("%Y-%m-%d %H:%M")
                 })
             
@@ -139,7 +184,7 @@ def obtener_proximos_respaldos():
             
             if fecha > ahora:
                 proximos.append({
-                    "tarea": f"Respaldo Semanal ({config['formato'].upper()})",
+                    "tarea": f"Respaldo {tipo_respaldo} Semanal ({formato})",
                     "proxima_ejecucion": fecha.strftime("%Y-%m-%d %H:%M")
                 })
             
@@ -160,7 +205,7 @@ def obtener_proximos_respaldos():
                 
                 if fecha > ahora:
                     proximos.append({
-                        "tarea": f"Respaldo Mensual ({config['formato'].upper()})",
+                        "tarea": f"Respaldo {tipo_respaldo} Mensual ({formato})",
                         "proxima_ejecucion": fecha.strftime("%Y-%m-%d %H:%M")
                     })
                 
@@ -177,12 +222,7 @@ def ejecutar_respaldo_programado():
     Función que se ejecuta automáticamente según el horario.
     Genera archivos y los guarda en la carpeta backups_automaticos/
     """
-    from services.backup_service import (
-        generar_backup_completo,
-        generar_excel,
-        generar_pdf,
-        generar_sql
-    )
+    from services.backup_service import generar_excel, generar_pdf, generar_sql
     
     config = cargar_config()
     
@@ -192,17 +232,34 @@ def ejecutar_respaldo_programado():
     try:
         print(f"🔄 Iniciando respaldo automático...")
         
-        # Generar respaldo completo
-        ventas, cantidad = generar_backup_completo()
+        # Obtener todas las colecciones de la base de datos
+        colecciones = obtener_todas_colecciones()
+        if not colecciones:
+            print("❌ No se encontraron colecciones para respaldar")
+            agregar_historial(
+                config.get("tipo_respaldo", "completo"), 
+                config.get("formato", "todos"), 
+                0, {}, [], 
+                "error: No se encontraron colecciones"
+            )
+            return
+        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         formato_config = config.get("formato", "todos")
+        tipo_respaldo = config.get("tipo_respaldo", "completo")
+        
+        # Calcular total de registros
+        total_registros = sum(len(datos) for datos in colecciones.values())
+        
+        # Información de colecciones respaldadas
+        colecciones_respaldadas = {nombre: len(datos) for nombre, datos in colecciones.items()}
         
         archivos_generados = []
         
         # Generar archivos según configuración
         if formato_config == "todos" or formato_config == "excel":
-            archivo_excel = generar_excel(ventas, "automatico")
-            filename = f"backup_auto_{timestamp}.xlsx"
+            archivo_excel = generar_excel(colecciones, tipo_respaldo)
+            filename = f"backup_auto_{tipo_respaldo}_{timestamp}.xlsx"
             filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
             
             with open(filepath, 'wb') as f:
@@ -212,8 +269,8 @@ def ejecutar_respaldo_programado():
             print(f"  ✅ Excel generado: {filename}")
         
         if formato_config == "todos" or formato_config == "pdf":
-            archivo_pdf = generar_pdf(ventas, "automatico")
-            filename = f"backup_auto_{timestamp}.pdf"
+            archivo_pdf = generar_pdf(colecciones, tipo_respaldo)
+            filename = f"backup_auto_{tipo_respaldo}_{timestamp}.pdf"
             filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
             
             with open(filepath, 'wb') as f:
@@ -223,8 +280,8 @@ def ejecutar_respaldo_programado():
             print(f"  ✅ PDF generado: {filename}")
         
         if formato_config == "todos" or formato_config == "sql":
-            archivo_sql = generar_sql(ventas, "automatico")
-            filename = f"backup_auto_{timestamp}.sql"
+            archivo_sql = generar_sql(colecciones, tipo_respaldo)
+            filename = f"backup_auto_{tipo_respaldo}_{timestamp}.sql"
             filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
             
             with open(filepath, 'wb') as f:
@@ -234,9 +291,19 @@ def ejecutar_respaldo_programado():
             print(f"  ✅ SQL generado: {filename}")
         
         # Registrar en historial
-        agregar_historial(formato_config, cantidad, archivos_generados, "exitoso")
+        agregar_historial(
+            tipo_respaldo, 
+            formato_config, 
+            total_registros, 
+            colecciones_respaldadas, 
+            archivos_generados, 
+            "exitoso"
+        )
         
-        print(f"✅ Respaldo automático completado: {cantidad} registros, {len(archivos_generados)} archivo(s)")
+        print(f"✅ Respaldo automático {tipo_respaldo} completado:")
+        print(f"   📊 Registros: {total_registros}")
+        print(f"   📁 Colecciones: {len(colecciones)}")
+        print(f"   💾 Archivos: {len(archivos_generados)}")
         
         # Limpiar archivos antiguos si está configurado
         if config.get("limpiar_antiguos", False):
@@ -244,7 +311,12 @@ def ejecutar_respaldo_programado():
         
     except Exception as e:
         print(f"❌ Error en respaldo automático: {e}")
-        agregar_historial("error", 0, [], f"error: {str(e)}")
+        agregar_historial(
+            config.get("tipo_respaldo", "completo"), 
+            config.get("formato", "todos"), 
+            0, {}, [], 
+            f"error: {str(e)}"
+        )
 
 
 def limpiar_backups_antiguos(dias_retener=30):
@@ -294,13 +366,19 @@ def listar_archivos_guardados():
                 # Detectar si es nuevo (menos de 1 hora)
                 es_nuevo = (ahora - fecha_mod).seconds < 3600
                 
-                # Detectar tipo de respaldo
-                if 'manual' in filename:
+                # Detectar tipo de respaldo por nombre de archivo
+                if 'auto_completo' in filename:
+                    tipo_respaldo = "Completo Automático"
+                    tipo_color = "primary"
+                elif 'auto_incremental' in filename:
+                    tipo_respaldo = "Incremental Automático"
+                    tipo_color = "warning"
+                elif 'auto_diferencial' in filename:
+                    tipo_respaldo = "Diferencial Automático"
+                    tipo_color = "secondary"
+                elif 'manual' in filename:
                     tipo_respaldo = "Manual"
                     tipo_color = "info"
-                elif 'auto' in filename:
-                    tipo_respaldo = "Automático"
-                    tipo_color = "success"
                 elif 'completo' in filename:
                     tipo_respaldo = "Completo"
                     tipo_color = "primary"
@@ -455,20 +533,39 @@ def obtener_estadisticas_historial():
             "exitosos": 0,
             "fallidos": 0,
             "ultimo_respaldo": None,
-            "total_registros": 0
+            "total_registros": 0,
+            "promedio_registros": 0
         }
     
-    exitosos = sum(1 for h in historial if h.get("estado") == "exitoso" or h.get("estado") == "manual")
+    exitosos = sum(1 for h in historial if h.get("estado") == "exitoso")
     fallidos = len(historial) - exitosos
-    total_registros = sum(h.get("cantidad_registros", 0) for h in historial if "exitoso" in h.get("estado", ""))
+    total_registros = sum(h.get("cantidad_registros", 0) for h in historial if h.get("estado") == "exitoso")
+    
+    # Calcular promedio
+    promedio_registros = total_registros // exitosos if exitosos > 0 else 0
     
     return {
         "total_respaldos": len(historial),
         "exitosos": exitosos,
         "fallidos": fallidos,
         "ultimo_respaldo": historial[0].get("fecha") if historial else None,
-        "total_registros": total_registros
+        "total_registros": total_registros,
+        "promedio_registros": promedio_registros
     }
+
+
+def obtener_colecciones_actuales():
+    """
+    Obtiene las colecciones actuales en la base de datos
+    """
+    if db is None:
+        return []
+    
+    try:
+        nombres_colecciones = db.list_collection_names()
+        return [nombre for nombre in nombres_colecciones if not nombre.startswith('system.')]
+    except:
+        return []
 
 
 # Inicializar scheduler al importar el módulo
