@@ -10,6 +10,7 @@
     <style>
         .backup-card {
             transition: all 0.3s ease;
+            position: relative;
             border: 2px solid transparent;
             cursor: pointer;
         }
@@ -20,6 +21,16 @@
         .backup-card.selected {
             border-color: var(--gold-primary);
             background: linear-gradient(135deg, rgba(218, 165, 32, 0.1), rgba(255, 255, 255, 0.9));
+        }
+        .backup-card.selected::after {
+        content: "\f058"; /* icono check-circle */
+        font-family: "Font Awesome 6 Free";
+        font-weight: 900;
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        font-size: 1.8rem;
+        color: var(--gold-primary);
         }
         .format-btn {
             transition: all 0.3s ease;

@@ -86,11 +86,46 @@ def ventas_dashboard():
     df, resumen = cargar_y_analizar_ventas()
     return render_template("ventas.html", df=df, resumen=resumen)
 
+# Reemplaza la ruta /analisis en app.py con esta versión corregida:
+
 @app.route("/analisis")
 def analisis():
-    df, _ = cargar_y_analizar_ventas()
-    _, resumen = analizar_datos_con_spark(df)
-    return render_template("analisis.html", resumen=resumen)
+    if not session.get("logged_in"):
+        flash("Debes iniciar sesión para acceder.", "warning")
+        return redirect("/login")
+    
+    try:
+        # Opción 1: Usar la función simplificada
+        from services.analisis_service import obtener_resumen_ventas
+        resumen = obtener_resumen_ventas()
+        
+        # Opción 2: O usar la función completa
+        # from services.analisis_service import analizar_datos_con_spark
+        # _, resumen = analizar_datos_con_spark()
+        
+        if resumen is None:
+            flash("No hay datos suficientes para el análisis.", "warning")
+            return render_template("analisis.html", resumen=None)
+        
+        # Debug: Imprimir en consola para verificar
+        print("=" * 50)
+        print("RESUMEN DE ANÁLISIS:")
+        print(f"Total Productos: {resumen.get('total_productos')}")
+        print(f"Total Ingresos: {resumen.get('total_ingresos')}")
+        print(f"Precio Promedio: {resumen.get('precio_promedio')}")
+        print(f"Top Producto: {resumen.get('top_producto')}")
+        print(f"Top Cliente: {resumen.get('top_cliente')}")
+        print(f"Ventas por Tipo: {resumen.get('ventas_por_tipo')}")
+        print("=" * 50)
+        
+        return render_template("analisis.html", resumen=resumen)
+        
+    except Exception as e:
+        print(f"Error en ruta /analisis: {e}")
+        import traceback
+        traceback.print_exc()
+        flash(f"Error al cargar análisis: {str(e)}", "danger")
+        return render_template("analisis.html", resumen=None)
 
 @app.route("/regresion", methods=["GET", "POST"])
 def regresion():
@@ -765,23 +800,23 @@ def forzar_ejecucion_respaldo():
         return redirect("/respaldos/configuracion")
     
 # ======================== REGRESIÓN POLINÓMICA ========================
-@app.route("/regresion-polinomica", methods=["GET", "POST"])
-def regresion_polinomica():
-    if not session.get("logged_in"):
-        return redirect("/login")
+# @app.route("/regresion-polinomica", methods=["GET", "POST"])
+# def regresion_polinomica():
+#     if not session.get("logged_in"):
+#         return redirect("/login")
     
-    grado = 2  # grado por defecto
+#     grado = 2  # grado por defecto
     
-    if request.method == "POST":
-        try:
-            grado = int(request.form.get("grado", 2))
-            grado = max(1, min(grado, 10))  # limitar entre 1 y 10
-        except:
-            grado = 2
+#     if request.method == "POST":
+#         try:
+#             grado = int(request.form.get("grado", 2))
+#             grado = max(1, min(grado, 10))  # limitar entre 1 y 10
+#         except:
+#             grado = 2
     
-    modelo = entrenar_modelo_polinomico(grado)
+#     modelo = entrenar_modelo_polinomico(grado)
     
-    return render_template("regresion_polinomica.html", modelo=modelo, grado=grado)
+#     return render_template("regresion_polinomica.html", modelo=modelo, grado=grado)
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
