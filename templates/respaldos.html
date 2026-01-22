@@ -1,95 +1,40 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Respaldos | Nube de Cacao</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
         .backup-card {
             transition: all 0.3s ease;
-            border: none;
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
+            border: 2px solid transparent;
+            cursor: pointer;
         }
-
         .backup-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
         }
-
-        .backup-icon {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
+        .backup-card.selected {
+            border-color: var(--gold-primary);
+            background: linear-gradient(135deg, rgba(218, 165, 32, 0.1), rgba(255, 255, 255, 0.9));
+        }
+        .format-btn {
             transition: all 0.3s ease;
         }
-
-        .backup-card:hover .backup-icon {
-            transform: scale(1.1);
-        }
-
-        .btn-download {
-            border-radius: 50px;
-            padding: 12px 30px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            transition: all 0.3s ease;
-        }
-
-        .btn-download:hover {
+        .format-btn.active {
+            background: var(--coffee-dark) !important;
+            color: white !important;
             transform: scale(1.05);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
-
-        .stat-card {
-            background: linear-gradient(135deg, var(--gold-primary) 0%, var(--coffee-light) 100%);
-            color: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 15px;
-        }
-
-        .stat-value {
-            font-size: 2.5rem;
-            font-weight: bold;
-            margin: 10px 0;
-        }
-
-        .stat-label {
-            font-size: 0.9rem;
-            opacity: 0.9;
-        }
-
-        .excel-color {
-            background: linear-gradient(135deg, #217346 0%, #2d9558 100%);
-        }
-
-        .pdf-color {
-            background: linear-gradient(135deg, #d32f2f 0%, #f44336 100%);
-        }
-
-        .sql-color {
-            background: linear-gradient(135deg, #1565c0 0%, #1976d2 100%);
-        }
-
-        .info-section {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 25px;
-            margin-top: 30px;
+        .info-badge {
+            background: linear-gradient(135deg, #f5f5f5, #e8e8e8);
+            border-left: 4px solid var(--gold-primary);
         }
     </style>
 </head>
-
 <body>
     <div class="clouds-container">
         <div class="cloud cloud-1"></div>
@@ -97,167 +42,255 @@
         <div class="cloud cloud-3"></div>
     </div>
 
+    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark navbar-premium py-3 mb-5">
         <div class="container">
             <a href="/dashboard" class="btn btn-outline-light btn-sm rounded-pill px-3">
                 <i class="fa-solid fa-arrow-left me-2"></i> Volver
             </a>
-            <span class="navbar-brand ms-auto fw-bold" style="letter-spacing: 1px;">
-                <i class="fa-solid fa-database me-2"></i> Respaldos y Exportación
+            <span class="navbar-brand mx-auto fw-bold" style="letter-spacing: 1px;">
+                <i class="fa-solid fa-database me-2"></i> Sistema de Respaldos
             </span>
+            <a href="/respaldos/configuracion" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                <i class="fa-solid fa-gear me-2"></i> Configuración
+            </a>
         </div>
     </nav>
 
     <div class="container mb-5">
-        <!-- Estadísticas -->
-        <div class="row mb-5">
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <i class="fa-solid fa-file-lines fa-2x mb-2"></i>
-                    <div class="stat-label">Total de Registros</div>
-                    <div class="stat-value">{{ stats.total_registros }}</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <i class="fa-solid fa-dollar-sign fa-2x mb-2"></i>
-                    <div class="stat-label">Ingresos Totales</div>
-                    <div class="stat-value">${{ "%.2f"|format(stats.total_ingresos) }}</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <i class="fa-solid fa-mug-hot fa-2x mb-2"></i>
-                    <div class="stat-label">Productos Vendidos</div>
-                    <div class="stat-value">{{ stats.total_cantidad }}</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <i class="fa-solid fa-clock fa-2x mb-2"></i>
-                    <div class="stat-label">Última Venta</div>
-                    <div class="stat-value" style="font-size: 1rem;">
-                        {{ stats.fecha_ultima_venta if stats.fecha_ultima_venta else 'N/A' }}
+        <!-- Información de Respaldos Anteriores -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm" style="border-radius: 15px;">
+                    <div class="card-body p-4">
+                        <h5 class="mb-3">
+                            <i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>
+                            Últimos Respaldos Realizados
+                        </h5>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <div class="info-badge p-3 rounded">
+                                    <small class="text-muted d-block mb-1">Completo</small>
+                                    <strong class="d-block">
+                                        {% if info.ultimo_completo %}
+                                            {{ info.ultimo_completo[:19] }}
+                                        {% else %}
+                                            Nunca
+                                        {% endif %}
+                                    </strong>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="info-badge p-3 rounded">
+                                    <small class="text-muted d-block mb-1">Incremental</small>
+                                    <strong class="d-block">
+                                        {% if info.ultimo_incremental %}
+                                            {{ info.ultimo_incremental[:19] }}
+                                        {% else %}
+                                            Nunca
+                                        {% endif %}
+                                    </strong>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="info-badge p-3 rounded">
+                                    <small class="text-muted d-block mb-1">Diferencial</small>
+                                    <strong class="d-block">
+                                        {% if info.ultimo_diferencial %}
+                                            {{ info.ultimo_diferencial[:19] }}
+                                        {% else %}
+                                            Nunca
+                                        {% endif %}
+                                    </strong>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="info-badge p-3 rounded">
+                                    <small class="text-muted d-block mb-1">Total Registros</small>
+                                    <strong class="d-block text-success">
+                                        <i class="fa-solid fa-check-circle me-1"></i>
+                                        {{ info.total_registros }}
+                                    </strong>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Título Principal -->
-        <div class="text-center mb-5">
-            <div class="d-inline-block p-3 rounded-circle mb-3"
-                style="background: var(--bg-cream); box-shadow: 0 5px 15px rgba(0,0,0,0.05);">
-                <i class="fa-solid fa-cloud-arrow-down fa-3x" style="color: var(--coffee-dark);"></i>
+        <!-- Formulario de Respaldo -->
+        <div class="card border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="card-body p-5">
+                <div class="text-center mb-5">
+                    <div class="d-inline-block p-3 rounded-circle mb-3" 
+                         style="background: linear-gradient(135deg, #DAA520, #FFD700); box-shadow: 0 5px 20px rgba(218, 165, 32, 0.3);">
+                        <i class="fa-solid fa-download fa-2x text-white"></i>
+                    </div>
+                    <h2 class="fw-bold mb-2" style="color: var(--coffee-dark);">Generar Respaldo</h2>
+                    <p class="text-muted">Selecciona el tipo de respaldo y el formato de descarga</p>
+                </div>
+
+                <form action="/respaldos/generar" method="POST" id="backupForm">
+                    <!-- Tipo de Respaldo -->
+                    <div class="mb-5">
+                        <h5 class="mb-3 fw-bold">
+                            <i class="fa-solid fa-layer-group me-2 text-primary"></i>
+                            1. Tipo de Respaldo
+                        </h5>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="backup-card card border-0 shadow-sm p-4 h-100" data-tipo="completo">
+                                    <div class="text-center">
+                                        <i class="fa-solid fa-database fa-3x mb-3" style="color: var(--gold-primary);"></i>
+                                        <h5 class="fw-bold">Completo</h5>
+                                        <p class="text-muted small mb-3">
+                                            Respalda todos los registros de la base de datos. 
+                                            Recomendado para respaldos periódicos completos.
+                                        </p>
+                                        <span class="badge bg-success">Todos los registros</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="backup-card card border-0 shadow-sm p-4 h-100" data-tipo="incremental">
+                                    <div class="text-center">
+                                        <i class="fa-solid fa-circle-plus fa-3x mb-3" style="color: #28a745;"></i>
+                                        <h5 class="fw-bold">Incremental</h5>
+                                        <p class="text-muted small mb-3">
+                                            Solo registros nuevos desde el último respaldo.
+                                            Más rápido y ocupa menos espacio.
+                                        </p>
+                                        <span class="badge bg-info">Solo cambios nuevos</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="backup-card card border-0 shadow-sm p-4 h-100" data-tipo="diferencial">
+                                    <div class="text-center">
+                                        <i class="fa-solid fa-code-compare fa-3x mb-3" style="color: #007bff;"></i>
+                                        <h5 class="fw-bold">Diferencial</h5>
+                                        <p class="text-muted small mb-3">
+                                            Cambios desde el último respaldo completo.
+                                            Balance entre completo e incremental.
+                                        </p>
+                                        <span class="badge bg-warning text-dark">Desde último completo</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <input type="hidden" name="tipo_backup" id="tipo_backup" value="completo">
+                    </div>
+
+                    <!-- Formato de Descarga -->
+                    <div class="mb-4">
+                        <h5 class="mb-3 fw-bold">
+                            <i class="fa-solid fa-file-export me-2 text-success"></i>
+                            2. Formato de Descarga
+                        </h5>
+                        <div class="d-flex gap-3 justify-content-center flex-wrap">
+                            <button type="button" class="format-btn btn btn-outline-success btn-lg px-5 active" data-formato="excel">
+                                <i class="fa-solid fa-file-excel fa-2x d-block mb-2"></i>
+                                Excel (.xlsx)
+                            </button>
+                            <button type="button" class="format-btn btn btn-outline-danger btn-lg px-5" data-formato="pdf">
+                                <i class="fa-solid fa-file-pdf fa-2x d-block mb-2"></i>
+                                PDF (.pdf)
+                            </button>
+                            <button type="button" class="format-btn btn btn-outline-primary btn-lg px-5" data-formato="sql">
+                                <i class="fa-solid fa-database fa-2x d-block mb-2"></i>
+                                SQL (.sql)
+                            </button>
+                        </div>
+                        <input type="hidden" name="formato" id="formato" value="excel">
+                    </div>
+
+                    <!-- Botón de Descarga -->
+                    <div class="text-center mt-5">
+                        <button type="submit" class="btn btn-lg px-5 py-3 fw-bold shadow-lg" 
+                                style="background: linear-gradient(135deg, var(--gold-primary), #FFD700); 
+                                       border: none; border-radius: 50px; color: white;">
+                            <i class="fa-solid fa-download me-2"></i>
+                            Generar y Descargar Respaldo
+                        </button>
+                        <p class="text-muted small mt-3">
+                            <i class="fa-solid fa-shield-halved me-1"></i>
+                            El respaldo se generará de forma segura y se descargará automáticamente
+                        </p>
+                    </div>
+                </form>
             </div>
-            <h2 class="fw-bold mb-2" style="color: var(--coffee-dark);">Exportar Base de Datos</h2>
-            <p class="text-muted">Descarga tus datos en diferentes formatos</p>
-            <a href="/respaldos/configuracion" class="btn btn-outline-primary rounded-pill px-4 mt-2">
-                <i class="fa-solid fa-robot me-2"></i>Configurar Respaldos Automáticos
-            </a>
         </div>
 
-        <!-- Tarjetas de Exportación -->
-        <div class="row g-4">
-            <!-- Excel -->
-            <div class="col-md-4">
-                <div class="backup-card shadow-sm p-4">
-                    <div class="backup-icon excel-color">
-                        <i class="fa-solid fa-file-excel fa-3x text-white"></i>
-                    </div>
-                    <h4 class="text-center fw-bold mb-3">Excel</h4>
-                    <p class="text-center text-muted small mb-4">
-                        Perfecto para análisis en hojas de cálculo. Incluye formato automático y columnas ajustadas.
-                    </p>
-                    <ul class="list-unstyled small mb-4">
-                        <li class="mb-2"><i class="fa-solid fa-check text-success me-2"></i> Formato .xlsx</li>
-                        <li class="mb-2"><i class="fa-solid fa-check text-success me-2"></i> Compatible con Excel y Google Sheets</li>
-                        <li class="mb-2"><i class="fa-solid fa-check text-success me-2"></i> Columnas auto-ajustadas</li>
-                    </ul>
-                    <div class="text-center">
-                        <a href="/respaldos/descargar/excel" class="btn btn-success btn-download w-100">
-                            <i class="fa-solid fa-download me-2"></i> Descargar Excel
-                        </a>
+        <!-- Información Adicional -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm" style="border-radius: 15px;">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold mb-3">
+                            <i class="fa-solid fa-circle-info me-2 text-info"></i>
+                            ¿Qué tipo elegir?
+                        </h6>
+                        <ul class="small text-muted mb-0">
+                            <li class="mb-2"><strong>Completo:</strong> Para respaldos semanales o mensuales</li>
+                            <li class="mb-2"><strong>Incremental:</strong> Para respaldos diarios automáticos</li>
+                            <li><strong>Diferencial:</strong> Para recuperación rápida de datos recientes</li>
+                        </ul>
                     </div>
                 </div>
             </div>
-
-            <!-- PDF -->
-            <div class="col-md-4">
-                <div class="backup-card shadow-sm p-4">
-                    <div class="backup-icon pdf-color">
-                        <i class="fa-solid fa-file-pdf fa-3x text-white"></i>
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm" style="border-radius: 15px;">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold mb-3">
+                            <i class="fa-solid fa-lightbulb me-2 text-warning"></i>
+                            Recomendaciones
+                        </h6>
+                        <ul class="small text-muted mb-0">
+                            <li class="mb-2">Guarda los respaldos en ubicaciones seguras</li>
+                            <li class="mb-2">Realiza respaldos completos al menos una vez por semana</li>
+                            <li>Verifica periódicamente que los respaldos sean válidos</li>
+                        </ul>
                     </div>
-                    <h4 class="text-center fw-bold mb-3">PDF</h4>
-                    <p class="text-center text-muted small mb-4">
-                        Ideal para reportes e impresión. Documento profesional con formato elegante.
-                    </p>
-                    <ul class="list-unstyled small mb-4">
-                        <li class="mb-2"><i class="fa-solid fa-check text-danger me-2"></i> Formato .pdf</li>
-                        <li class="mb-2"><i class="fa-solid fa-check text-danger me-2"></i> Listo para imprimir</li>
-                        <li class="mb-2"><i class="fa-solid fa-check text-danger me-2"></i> Incluye resumen de ventas</li>
-                    </ul>
-                    <div class="text-center">
-                        <a href="/respaldos/descargar/pdf" class="btn btn-danger btn-download w-100">
-                            <i class="fa-solid fa-download me-2"></i> Descargar PDF
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SQL -->
-            <div class="col-md-4">
-                <div class="backup-card shadow-sm p-4">
-                    <div class="backup-icon sql-color">
-                        <i class="fa-solid fa-database fa-3x text-white"></i>
-                    </div>
-                    <h4 class="text-center fw-bold mb-3">SQL</h4>
-                    <p class="text-center text-muted small mb-4">
-                        Para desarrolladores. Script SQL completo con INSERT statements listos para ejecutar.
-                    </p>
-                    <ul class="list-unstyled small mb-4">
-                        <li class="mb-2"><i class="fa-solid fa-check text-primary me-2"></i> Formato .sql</li>
-                        <li class="mb-2"><i class="fa-solid fa-check text-primary me-2"></i> Compatible con MySQL/PostgreSQL</li>
-                        <li class="mb-2"><i class="fa-solid fa-check text-primary me-2"></i> Incluye CREATE TABLE</li>
-                    </ul>
-                    <div class="text-center">
-                        <a href="/respaldos/descargar/sql" class="btn btn-primary btn-download w-100">
-                            <i class="fa-solid fa-download me-2"></i> Descargar SQL
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sección de información -->
-        <div class="info-section">
-            <h5 class="fw-bold mb-3">
-                <i class="fa-solid fa-circle-info me-2" style="color: var(--gold-primary);"></i>
-                Información sobre los respaldos
-            </h5>
-            <div class="row">
-                <div class="col-md-6">
-                    <h6 class="fw-bold">¿Cuándo debo hacer respaldos?</h6>
-                    <ul class="small text-muted">
-                        <li>Al finalizar cada día de operaciones</li>
-                        <li>Antes de realizar cambios importantes</li>
-                        <li>Semanalmente como medida preventiva</li>
-                        <li>Antes de actualizaciones del sistema</li>
-                    </ul>
-                </div>
-                <div class="col-md-6">
-                    <h6 class="fw-bold">Recomendaciones de seguridad</h6>
-                    <ul class="small text-muted">
-                        <li>Guarda los respaldos en un lugar seguro</li>
-                        <li>Mantén múltiples copias en diferentes ubicaciones</li>
-                        <li>Verifica regularmente que los archivos se puedan abrir</li>
-                        <li>Encripta los archivos si contienen información sensible</li>
-                    </ul>
                 </div>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-</body>
+    <script>
+        // Selección de tipo de respaldo
+        document.querySelectorAll('.backup-card').forEach(card => {
+            card.addEventListener('click', function() {
+                // Remover selección previa
+                document.querySelectorAll('.backup-card').forEach(c => c.classList.remove('selected'));
+                
+                // Seleccionar esta tarjeta
+                this.classList.add('selected');
+                
+                // Actualizar input hidden
+                const tipo = this.dataset.tipo;
+                document.getElementById('tipo_backup').value = tipo;
+            });
+        });
 
+        // Selección de formato
+        document.querySelectorAll('.format-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Remover selección previa
+                document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+                
+                // Seleccionar este botón
+                this.classList.add('active');
+                
+                // Actualizar input hidden
+                const formato = this.dataset.formato;
+                document.getElementById('formato').value = formato;
+            });
+        });
+
+        // Seleccionar "completo" por defecto
+        document.querySelector('[data-tipo="completo"]').classList.add('selected');
+    </script>
+</body>
 </html>

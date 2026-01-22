@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centro de Descargas | Nube de Cacao</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .download-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #28a745;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .download-card:hover {
+            transform: translateX(10px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .download-card.downloaded {
+            opacity: 0.5;
+            border-left-color: #6c757d;
+        }
+        
+        .badge-new {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .download-all-btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            border: none;
+            color: white;
+            font-weight: bold;
+            padding: 15px 40px;
+            border-radius: 50px;
+            box-shadow: 0 5px 20px rgba(40, 167, 69, 0.4);
+            transition: all 0.3s ease;
+        }
+        
+        .download-all-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(40, 167, 69, 0.6);
+        }
+        
+        .empty-state {
+            padding: 60px 20px;
+            text-align: center;
+            color: #6c757d;
+        }
+        
+        .file-icon-large {
+            font-size: 3rem;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="clouds-container">
+        <div class="cloud cloud-1"></div>
+        <div class="cloud cloud-2"></div>
+        <div class="cloud cloud-3"></div>
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-premium py-3 mb-5">
+        <div class="container">
+            <a href="/respaldos/configuracion" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                <i class="fa-solid fa-arrow-left me-2"></i> Configuración
+            </a>
+            <span class="navbar-brand mx-auto fw-bold" style="letter-spacing: 1px;">
+                <i class="fa-solid fa-download me-2"></i> Centro de Descargas
+            </span>
+            <span class="badge bg-light text-dark px-3 py-2 rounded-pill">
+                {{ pendientes }} pendiente(s)
+            </span>
+        </div>
+    </nav>
+
+    <div class="container mb-5">
+        <!-- Banner de Notificación -->
+        {% if pendientes > 0 %}
+        <div class="alert alert-success border-0 shadow-lg mb-4" style="border-radius: 20px; background: linear-gradient(135deg, #d4edda, #c3e6cb);">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h4 class="alert-heading mb-2">
+                        <i class="fa-solid fa-bell fa-shake me-2"></i>
+                        ¡Tienes {{ pendientes }} respaldo(s) listo(s) para descargar!
+                    </h4>
+                    <p class="mb-0">
+                        Los respaldos automáticos se han generado exitosamente. 
+                        Descárgalos ahora para tener una copia segura en tu computadora.
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button onclick="descargarTodos()" class="download-all-btn">
+                        <i class="fa-solid fa-download me-2"></i>
+                        Descargar Todos
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Lista de Archivos Pendientes -->
+        <div class="card border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="card-header text-white py-3" 
+                 style="background: linear-gradient(135deg, var(--gold-primary), var(--coffee-light)); border-radius: 20px 20px 0 0;">
+                <h5 class="mb-0 fw-bold">
+                    <i class="fa-solid fa-file-arrow-down me-2"></i>
+                    Respaldos Disponibles
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                {% if archivos|length > 0 %}
+                <div id="archivos-container">
+                    {% for archivo in archivos %}
+                    <div class="download-card" data-filename="{{ archivo.nombre }}" onclick="descargarArchivo('{{ archivo.nombre }}')">
+                        <div class="row align-items-center">
+                            <div class="col-auto">
+                                <div class="file-icon 
+                                    {% if archivo.extension == 'XLSX' %}bg-success
+                                    {% elif archivo.extension == 'PDF' %}bg-danger
+                                    {% elif archivo.extension == 'SQL' %}bg-primary
+                                    {% elif archivo.extension == 'ZIP' %}bg-warning
+                                    {% endif %} text-white d-flex align-items-center justify-content-center"
+                                    style="width: 60px; height: 60px; border-radius: 12px;">
+                                    <i class="fa-solid fa-file-{{ archivo.extension|lower }} fa-2x"></i>
+                                </div>
+                            </div>
+                            
+                            <div class="col">
+                                <div class="d-flex align-items-center mb-1">
+                                    <h6 class="mb-0 fw-bold me-2">{{ archivo.nombre }}</h6>
+                                    {% if archivo.es_nuevo %}
+                                    <span class="badge badge-new">NUEVO</span>
+                                    {% endif %}
+                                </div>
+                                <div class="d-flex gap-3 small text-muted">
+                                    <span>
+                                        <i class="fa-solid fa-calendar me-1"></i>
+                                        {{ archivo.fecha }}
+                                    </span>
+                                    <span>
+                                        <i class="fa-solid fa-weight-hanging me-1"></i>
+                                        {{ archivo.tamaño_mb }} MB
+                                    </span>
+                                    <span class="badge bg-{{ archivo.tipo_color }}">
+                                        {{ archivo.tipo_respaldo }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="col-auto">
+                                <button class="btn btn-success rounded-pill px-4 shadow" 
+                                        onclick="event.stopPropagation(); descargarArchivo('{{ archivo.nombre }}')">
+                                    <i class="fa-solid fa-download me-2"></i>
+                                    Descargar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Acciones en Lote -->
+                <div class="mt-4 p-3 rounded" style="background: #f8f9fa;">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h6 class="mb-1">
+                                <i class="fa-solid fa-layer-group me-2 text-primary"></i>
+                                Acciones en Lote
+                            </h6>
+                            <small class="text-muted">
+                                Gestiona todos los archivos al mismo tiempo
+                            </small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="btn-group">
+                                <button onclick="descargarTodos()" class="btn btn-primary">
+                                    <i class="fa-solid fa-download me-1"></i>
+                                    Descargar Todos
+                                </button>
+                                <button onclick="marcarDescargados()" class="btn btn-outline-secondary">
+                                    <i class="fa-solid fa-check me-1"></i>
+                                    Marcar Descargados
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% else %}
+                <div class="empty-state">
+                    <div class="file-icon-large bg-light text-muted mx-auto">
+                        <i class="fa-solid fa-inbox"></i>
+                    </div>
+                    <h4 class="mb-3">No hay respaldos pendientes</h4>
+                    <p class="text-muted mb-4">
+                        Los respaldos automáticos aparecerán aquí cuando se ejecuten.
+                        También puedes generar uno manual ahora mismo.
+                    </p>
+                    <a href="/respaldos/configuracion" class="btn btn-primary rounded-pill px-4">
+                        <i class="fa-solid fa-gear me-2"></i>
+                        Ir a Configuración
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Información -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm" style="border-radius: 15px;">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold mb-3">
+                            <i class="fa-solid fa-info-circle me-2 text-info"></i>
+                            ¿Cómo funciona?
+                        </h6>
+                        <ol class="small mb-0 ps-3">
+                            <li class="mb-2">Los respaldos automáticos se generan según tu configuración</li>
+                            <li class="mb-2">Aparecen aquí listos para descargar</li>
+                            <li class="mb-2">Click en "Descargar" para guardar en tu PC</li>
+                            <li>Los archivos se eliminan automáticamente después de {{ dias_retener }} días</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm" style="border-radius: 15px;">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold mb-3">
+                            <i class="fa-solid fa-lightbulb me-2 text-warning"></i>
+                            Recomendaciones
+                        </h6>
+                        <ul class="small mb-0 ps-3">
+                            <li class="mb-2">Descarga los respaldos regularmente</li>
+                            <li class="mb-2">Guárdalos en un lugar seguro (nube, disco externo)</li>
+                            <li class="mb-2">Verifica que los archivos sean válidos</li>
+                            <li>No esperes hasta el último momento</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function descargarArchivo(filename) {
+            const card = document.querySelector(`[data-filename="${filename}"]`);
+            
+            // Abrir descarga
+            window.location.href = `/respaldos/descargar/${filename}`;
+            
+            // Marcar como descargado visualmente
+            setTimeout(() => {
+                if (card) {
+                    card.classList.add('downloaded');
+                    const badge = card.querySelector('.badge-new');
+                    if (badge) badge.remove();
+                }
+            }, 1000);
+            
+            // Mostrar notificación
+            mostrarNotificacion('Descargando archivo...', 'success');
+        }
+
+        function descargarTodos() {
+            const archivos = document.querySelectorAll('.download-card:not(.downloaded)');
+            
+            if (archivos.length === 0) {
+                mostrarNotificacion('No hay archivos pendientes', 'warning');
+                return;
+            }
+            
+            let count = 0;
+            archivos.forEach((card, index) => {
+                const filename = card.dataset.filename;
+                
+                setTimeout(() => {
+                    window.open(`/respaldos/descargar/${filename}`, '_blank');
+                    card.classList.add('downloaded');
+                    count++;
+                    
+                    if (count === archivos.length) {
+                        mostrarNotificacion(`${count} archivo(s) descargado(s)`, 'success');
+                    }
+                }, index * 500); // Delay entre descargas
+            });
+        }
+
+        function marcarDescargados() {
+            const cards = document.querySelectorAll('.download-card');
+            cards.forEach(card => card.classList.add('downloaded'));
+            mostrarNotificacion('Archivos marcados como descargados', 'info');
+        }
+
+        function mostrarNotificacion(mensaje, tipo) {
+            // Crear notificación temporal
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${tipo} position-fixed top-0 end-0 m-3 shadow-lg`;
+            alert.style.zIndex = '9999';
+            alert.innerHTML = `
+                <i class="fa-solid fa-check-circle me-2"></i>
+                ${mensaje}
+            `;
+            document.body.appendChild(alert);
+            
+            setTimeout(() => alert.remove(), 3000);
+        }
+
+        // Auto-refresh cada 30 segundos para mostrar nuevos archivos
+        setInterval(() => {
+            location.reload();
+        }, 30000);
+    </script>
+</body>
+</html>

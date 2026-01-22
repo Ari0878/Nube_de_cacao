@@ -1,0 +1,17 @@
+# Dependencias para el sistema de respaldos
+# Instalar con: pip install -r requirements.txt
+
+# Ya deberías tener estas (de tu proyecto actual):
+Flask
+pymongo
+pandas
+pyspark
+
+# Nuevas dependencias para respaldos:
+openpyxl>=3.1.2        # Para generar archivos Excel
+reportlab>=4.0.7       # Para generar archivos PDF
+xlsxwriter>=3.1.9      # Alternativa para Excel (opcional)
+APScheduler>=3.10.4    # Para respaldos automáticos programados
+
+# Si tienes problemas con reportlab, instala también:
+Pillow>=10.1.0         # Para imágenes en PDF

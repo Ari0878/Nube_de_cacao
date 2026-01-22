@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, redirect, session, flash
-from flask import send_file
 from services.auth_service import verificar_usuario, registrar_usuario
 from services.ventas_service import cargar_y_analizar_ventas
 from services.analisis_service import analizar_datos_con_spark
@@ -230,6 +229,541 @@ def regresion_multiple():
     
     return render_template("regresion_multiple.html", modelo=modelo, prediccion=prediccion)
 
+
+# Agregar estas importaciones al inicio de app.py
+from flask import send_file
+from services.backup_service import (
+    generar_backup_completo,
+    generar_backup_incremental,
+    generar_backup_diferencial,
+    generar_excel,
+    generar_pdf,
+    generar_sql,
+    obtener_info_respaldos
+)
+
+# Agregar estas rutas a tu app.py
+
+@app.route("/respaldos")
+def respaldos():
+    """Página principal de respaldos"""
+    if not session.get("logged_in"):
+        flash("Debes iniciar sesión para acceder.", "warning")
+        return redirect("/login")
+    
+    # Obtener información de respaldos anteriores
+    info = obtener_info_respaldos()
+    
+    return render_template("respaldos.html", info=info)
+
+
+@app.route("/respaldos/generar", methods=["POST"])
+def generar_respaldo():
+    """Genera y descarga un respaldo según los parámetros"""
+    if not session.get("logged_in"):
+        return redirect("/login")
+    
+    tipo_backup = request.form.get("tipo_backup", "completo")  # completo, incremental, diferencial
+    formato = request.form.get("formato", "excel")  # excel, pdf, sql
+    
+    try:
+        # Generar datos según el tipo de respaldo
+        if tipo_backup == "completo":
+            ventas, cantidad = generar_backup_completo()
+        elif tipo_backup == "incremental":
+            ventas, cantidad = generar_backup_incremental()
+        elif tipo_backup == "diferencial":
+            ventas, cantidad = generar_backup_diferencial()
+        else:
+            flash("Tipo de respaldo no válido.", "danger")
+            return redirect("/respaldos")
+        
+        # Generar archivo según el formato
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        if formato == "excel":
+            archivo = generar_excel(ventas, tipo_backup)
+            mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            extension = "xlsx"
+        elif formato == "pdf":
+            archivo = generar_pdf(ventas, tipo_backup)
+            mimetype = "application/pdf"
+            extension = "pdf"
+        elif formato == "sql":
+            archivo = generar_sql(ventas, tipo_backup)
+            mimetype = "application/sql"
+            extension = "sql"
+        else:
+            flash("Formato no válido.", "danger")
+            return redirect("/respaldos")
+        
+        filename = f"backup_{tipo_backup}_{timestamp}.{extension}"
+        
+        flash(f"Respaldo {tipo_backup} generado exitosamente: {cantidad} registros.", "success")
+        
+        return send_file(
+            archivo,
+            mimetype=mimetype,
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        flash(f"Error al generar respaldo: {str(e)}", "danger")
+        return redirect("/respaldos")
+
+
+@app.route("/respaldos/info")
+def info_respaldos():
+    """Retorna información de respaldos en JSON (para AJAX)"""
+    if not session.get("logged_in"):
+        return {"error": "No autorizado"}, 401
+    
+    info = obtener_info_respaldos()
+    return info
+# Agregar estas importaciones al inicio de app.py
+# from services.auto_backup_service import (
+#     cargar_config,
+#     guardar_config,
+#     cargar_historial,
+#     obtener_proximos_respaldos,
+#     configurar_scheduler,
+#     obtener_estadisticas_historial
+# )
+
+# Agregar estas rutas a tu app.py
+
+# @app.route("/respaldos/configuracion")
+# def configuracion_respaldos():
+#     """Página de configuración de respaldos automáticos"""
+#     if not session.get("logged_in"):
+#         flash("Debes iniciar sesión para acceder.", "warning")
+#         return redirect("/login")
+    
+#     config = cargar_config()
+#     proximos = obtener_proximos_respaldos()
+#     historial = cargar_historial()[:10]  # Últimos 10
+#     estadisticas = obtener_estadisticas_historial()
+    
+#     # Formatear fechas del historial para mostrar
+#     for item in historial:
+#         try:
+#             fecha_dt = datetime.fromisoformat(item["fecha"])
+#             item["fecha"] = fecha_dt.strftime("%Y-%m-%d %H:%M")
+#         except:
+#             pass
+    
+#     return render_template(
+#         "configuracion_respaldos.html",
+#         config=config,
+#         proximos=proximos,
+#         historial=historial,
+#         estadisticas=estadisticas
+#     )
+
+
+# @app.route("/respaldos/configuracion/guardar", methods=["POST"])
+# def guardar_configuracion_respaldos():
+#     """Guarda la configuración de respaldos automáticos"""
+#     if not session.get("logged_in"):
+#         return redirect("/login")
+    
+#     try:
+#         config = {
+#             "activo": request.form.get("activo") == "on",
+#             "hora": request.form.get("hora", "02:00"),
+#             "frecuencia": request.form.get("frecuencia", "diario"),
+#             "dia_semana": request.form.get("dia_semana", "monday"),
+#             "dia_mes": int(request.form.get("dia_mes", 1)),
+#             "formato": request.form.get("formato", "todos"),
+#             "limpiar_antiguos": request.form.get("limpiar_antiguos") == "on",
+#             "dias_retener": int(request.form.get("dias_retener", 30))
+#         }
+        
+#         guardar_config(config)
+#         configurar_scheduler()  # Reconfigurar el scheduler
+        
+#         flash("Configuración guardada exitosamente.", "success")
+        
+#     except Exception as e:
+#         flash(f"Error al guardar configuración: {str(e)}", "danger")
+    
+#     return redirect("/respaldos/configuracion")
+
+
+@app.route("/respaldos/ejecutar-ahora", methods=["POST"])
+def ejecutar_respaldo_manual():
+    """Ejecuta un respaldo manual y lo descarga inmediatamente"""
+    if not session.get("logged_in"):
+        return redirect("/login")
+    
+    formato = request.form.get("formato", "excel")
+    
+    try:
+        from services.backup_service import (
+            generar_backup_completo,
+            generar_excel,
+            generar_pdf,
+            generar_sql
+        )
+        
+        # Generar datos
+        ventas, cantidad = generar_backup_completo()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        archivos = []
+        
+        # Generar archivos según formato
+        if formato == "todos" or formato == "excel":
+            archivo_excel = generar_excel(ventas, "manual")
+            archivos.append({
+                "data": archivo_excel,
+                "mimetype": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "filename": f"backup_manual_{timestamp}.xlsx"
+            })
+        
+        if formato == "todos" or formato == "pdf":
+            archivo_pdf = generar_pdf(ventas, "manual")
+            archivos.append({
+                "data": archivo_pdf,
+                "mimetype": "application/pdf",
+                "filename": f"backup_manual_{timestamp}.pdf"
+            })
+        
+        if formato == "todos" or formato == "sql":
+            archivo_sql = generar_sql(ventas, "manual")
+            archivos.append({
+                "data": archivo_sql,
+                "mimetype": "application/sql",
+                "filename": f"backup_manual_{timestamp}.sql"
+            })
+        
+        # Si es un solo archivo, descargarlo directamente
+        if len(archivos) == 1:
+            from services.auto_backup_service import agregar_historial
+            agregar_historial(formato, cantidad, "manual")
+            
+            flash(f"Respaldo manual generado: {cantidad} registros.", "success")
+            
+            return send_file(
+                archivos[0]["data"],
+                mimetype=archivos[0]["mimetype"],
+                as_attachment=True,
+                download_name=archivos[0]["filename"]
+            )
+        
+        # Si son múltiples archivos, crear un ZIP
+        else:
+            import zipfile
+            from io import BytesIO
+            
+            zip_buffer = BytesIO()
+            
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                for archivo in archivos:
+                    zip_file.writestr(archivo["filename"], archivo["data"].getvalue())
+            
+            zip_buffer.seek(0)
+            
+            from services.auto_backup_service import agregar_historial
+            agregar_historial("todos", cantidad, "manual")
+            
+            flash(f"Respaldo manual generado: {cantidad} registros en {len(archivos)} archivos.", "success")
+            
+            return send_file(
+                zip_buffer,
+                mimetype="application/zip",
+                as_attachment=True,
+                download_name=f"backup_manual_{timestamp}.zip"
+            )
+    
+    except Exception as e:
+        flash(f"Error al ejecutar respaldo manual: {str(e)}", "danger")
+        return redirect("/respaldos/configuracion")
+
+
+@app.route("/respaldos/estadisticas")
+def estadisticas_respaldos():
+    """Retorna estadísticas de respaldos en JSON"""
+    if not session.get("logged_in"):
+        return {"error": "No autorizado"}, 401
+    
+    estadisticas = obtener_estadisticas_historial()
+    return estadisticas
+@app.route("/respaldos/centro-descargas")
+def centro_descargas():
+    """Centro de descargas - Muestra archivos listos para descargar"""
+    if not session.get("logged_in"):
+        flash("Debes iniciar sesión para acceder.", "warning")
+        return redirect("/login")
+    
+    archivos = listar_archivos_guardados()
+    config = cargar_config()
+    
+    # Contar archivos nuevos (menos de 1 hora)
+    pendientes = sum(1 for a in archivos if a.get("es_nuevo", False))
+    
+    return render_template(
+        "centro_descargas.html",
+        archivos=archivos,
+        pendientes=pendientes,
+        dias_retener=config.get("dias_retener", 30)
+    )
+
+
+# Agregar estas importaciones al inicio de app.py
+from services.auto_backup_service import (
+    cargar_config,
+    guardar_config,
+    cargar_historial,
+    obtener_proximos_respaldos,
+    configurar_scheduler,
+    obtener_estadisticas_historial,
+    listar_archivos_guardados,
+    eliminar_archivo,
+    obtener_estadisticas_storage,
+    ejecutar_respaldo_programado
+)
+
+# Agregar estas rutas a tu app.py
+
+@app.route("/respaldos/configuracion")
+def configuracion_respaldos():
+    if not session.get("logged_in"):
+        flash("Debes iniciar sesión para acceder.", "warning")
+        return redirect("/login")
+    
+    config = cargar_config()
+    proximos = obtener_proximos_respaldos()
+    historial = cargar_historial()[:10]
+    estadisticas = obtener_estadisticas_historial()
+    archivos = listar_archivos_guardados()[:10]
+    stats_storage = obtener_estadisticas_storage()
+    
+    for item in historial:
+        try:
+            fecha_dt = datetime.fromisoformat(item["fecha"])
+            item["fecha"] = fecha_dt.strftime("%Y-%m-%d %H:%M")
+        except:
+            pass
+    
+    return render_template(
+        "configuracion_respaldos.html",
+        config=config,
+        proximos=proximos,
+        historial=historial,
+        estadisticas=estadisticas,
+        archivos=archivos,
+        stats_storage=stats_storage
+    )
+
+
+
+@app.route("/respaldos/configuracion/guardar", methods=["POST"])
+def guardar_configuracion_respaldos():
+    """Guarda la configuración de respaldos automáticos"""
+    if not session.get("logged_in"):
+        return redirect("/login")
+    
+    try:
+        config = {
+            "activo": request.form.get("activo") == "on",
+            "hora": request.form.get("hora", "02:00"),
+            "frecuencia": request.form.get("frecuencia", "diario"),
+            "dia_semana": request.form.get("dia_semana", "monday"),
+            "dia_mes": int(request.form.get("dia_mes", 1)),
+            "formato": request.form.get("formato", "todos"),
+            "limpiar_antiguos": request.form.get("limpiar_antiguos") == "on",
+            "dias_retener": int(request.form.get("dias_retener", 30))
+        }
+        
+        guardar_config(config)
+        configurar_scheduler()  # Reconfigurar el scheduler
+        
+        flash("✅ Configuración guardada exitosamente. Los respaldos se generarán automáticamente.", "success")
+        
+    except Exception as e:
+        flash(f"Error al guardar configuración: {str(e)}", "danger")
+    
+    return redirect("/respaldos/configuracion")
+
+
+@app.route("/respaldos/ejecutar-ahora", methods=["POST"])
+def ejecutar_respaldo_manual_ahora():
+    """
+    Ejecuta un respaldo manual inmediatamente y guarda los archivos en el servidor
+    """
+    if not session.get("logged_in"):
+        return redirect("/login")
+    
+    formato = request.form.get("formato", "excel")
+    
+    try:
+        from services.backup_service import (
+            generar_backup_completo,
+            generar_excel,
+            generar_pdf,
+            generar_sql
+        )
+        from services.auto_backup_service import BACKUPS_STORAGE_DIR, agregar_historial
+        
+        # Generar datos
+        ventas, cantidad = generar_backup_completo()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        archivos_generados = []
+        
+        # Generar y guardar archivos según formato
+        if formato == "todos" or formato == "excel":
+            archivo_excel = generar_excel(ventas, "manual")
+            filename = f"backup_manual_{timestamp}.xlsx"
+            filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
+            
+            with open(filepath, 'wb') as f:
+                f.write(archivo_excel.getvalue())
+            
+            archivos_generados.append(filename)
+        
+        if formato == "todos" or formato == "pdf":
+            archivo_pdf = generar_pdf(ventas, "manual")
+            filename = f"backup_manual_{timestamp}.pdf"
+            filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
+            
+            with open(filepath, 'wb') as f:
+                f.write(archivo_pdf.getvalue())
+            
+            archivos_generados.append(filename)
+        
+        if formato == "todos" or formato == "sql":
+            archivo_sql = generar_sql(ventas, "manual")
+            filename = f"backup_manual_{timestamp}.sql"
+            filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
+            
+            with open(filepath, 'wb') as f:
+                f.write(archivo_sql.getvalue())
+            
+            archivos_generados.append(filename)
+        
+        # Registrar en historial
+        agregar_historial(formato, cantidad, archivos_generados, "manual")
+        
+        flash(f"✅ Respaldo manual ejecutado: {cantidad} registros, {len(archivos_generados)} archivo(s) generado(s).", "success")
+        
+        # Redirigir al centro de descargas
+        return redirect("/respaldos/centro-descargas")
+        
+    except Exception as e:
+        flash(f"❌ Error al ejecutar respaldo manual: {str(e)}", "danger")
+        return redirect("/respaldos/configuracion")
+
+
+@app.route("/respaldos/archivos")
+def ver_archivos_respaldos():
+    """Página para ver y descargar archivos de respaldos guardados"""
+    if not session.get("logged_in"):
+        flash("Debes iniciar sesión para acceder.", "warning")
+        return redirect("/login")
+    
+    archivos = listar_archivos_guardados()
+    stats = obtener_estadisticas_storage()
+    
+    return render_template(
+        "archivos_respaldos.html",
+        archivos=archivos,
+        stats=stats
+    )
+
+
+@app.route("/respaldos/descargar/<filename>")
+def descargar_archivo_respaldo(filename):
+    """Descarga un archivo de respaldo específico"""
+    if not session.get("logged_in"):
+        return redirect("/login")
+    
+    try:
+        from services.auto_backup_service import BACKUPS_STORAGE_DIR
+        
+        filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
+        
+        # Validar que el archivo existe y está en la carpeta correcta
+        if not os.path.exists(filepath):
+            flash("Archivo no encontrado.", "danger")
+            return redirect("/respaldos/archivos")
+        
+        # Determinar mimetype según extensión
+        if filename.endswith('.xlsx'):
+            mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        elif filename.endswith('.pdf'):
+            mimetype = "application/pdf"
+        elif filename.endswith('.sql'):
+            mimetype = "application/sql"
+        else:
+            mimetype = "application/octet-stream"
+        
+        return send_file(
+            filepath,
+            mimetype=mimetype,
+            as_attachment=True,
+            download_name=filename
+        )
+    
+    except Exception as e:
+        flash(f"Error al descargar archivo: {str(e)}", "danger")
+        return redirect("/respaldos/archivos")
+
+
+@app.route("/respaldos/eliminar/<filename>", methods=["POST"])
+def eliminar_archivo_respaldo(filename):
+    """Elimina un archivo de respaldo específico"""
+    if not session.get("logged_in"):
+        return redirect("/login")
+    
+    success, mensaje = eliminar_archivo(filename)
+    
+    if success:
+        flash(f"✅ {mensaje}", "success")
+    else:
+        flash(f"❌ {mensaje}", "danger")
+    
+    return redirect("/respaldos/archivos")
+
+
+@app.route("/respaldos/limpiar-antiguos", methods=["POST"])
+def limpiar_archivos_antiguos():
+    """Limpia archivos antiguos manualmente"""
+    if not session.get("logged_in"):
+        return redirect("/login")
+    
+    try:
+        from services.auto_backup_service import limpiar_backups_antiguos
+        
+        config = cargar_config()
+        dias = config.get("dias_retener", 30)
+        
+        limpiar_backups_antiguos(dias)
+        
+        flash(f"✅ Limpieza completada. Archivos más antiguos que {dias} días eliminados.", "success")
+    
+    except Exception as e:
+        flash(f"❌ Error al limpiar archivos: {str(e)}", "danger")
+    
+    return redirect("/respaldos/archivos")
+
+
+@app.route("/respaldos/forzar-ejecucion", methods=["POST"])
+def forzar_ejecucion_respaldo():
+    """Fuerza la ejecución del respaldo automático inmediatamente (simula el scheduler)"""
+    if not session.get("logged_in"):
+        return redirect("/login")
+    
+    try:
+        ejecutar_respaldo_programado()
+        flash("✅ Respaldo automático ejecutado. Ve al Centro de Descargas para descargar los archivos.", "success")
+        return redirect("/respaldos/centro-descargas")
+    except Exception as e:
+        flash(f"❌ Error al forzar ejecución: {str(e)}", "danger")
+        return redirect("/respaldos/configuracion")
+    
 # ======================== REGRESIÓN POLINÓMICA ========================
 @app.route("/regresion-polinomica", methods=["GET", "POST"])
 def regresion_polinomica():
@@ -248,202 +782,6 @@ def regresion_polinomica():
     modelo = entrenar_modelo_polinomico(grado)
     
     return render_template("regresion_polinomica.html", modelo=modelo, grado=grado)
-from services.backup_service import (
-    exportar_excel, 
-    exportar_pdf, 
-    exportar_sql, 
-    obtener_estadisticas_backup
-)
 
-# Agregar estas rutas antes del if __name__ == "__main__":
-
-# ======================== RESPALDOS ========================
-@app.route("/respaldos")
-def respaldos():
-    """Página de respaldos y exportación de datos"""
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    
-    estadisticas = obtener_estadisticas_backup()
-    return render_template("respaldos.html", stats=estadisticas)
-
-
-@app.route("/respaldos/descargar/excel")
-def descargar_excel():
-    """Descarga el respaldo en formato Excel"""
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    
-    try:
-        archivo = exportar_excel()
-        
-        if archivo is None:
-            flash("No hay datos para exportar.", "warning")
-            return redirect("/respaldos")
-        
-        fecha_actual = datetime.now().strftime("%Y%m%d_%H%M%S")
-        nombre_archivo = f"ventas_nube_cacao_{fecha_actual}.xlsx"
-        
-        return send_file(
-            archivo,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=True,
-            download_name=nombre_archivo
-        )
-    except Exception as e:
-        flash(f"Error al exportar a Excel: {str(e)}", "danger")
-        return redirect("/respaldos")
-
-
-@app.route("/respaldos/descargar/pdf")
-def descargar_pdf():
-    """Descarga el respaldo en formato PDF"""
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    
-    try:
-        archivo = exportar_pdf()
-        
-        if archivo is None:
-            flash("No hay datos para exportar.", "warning")
-            return redirect("/respaldos")
-        
-        fecha_actual = datetime.now().strftime("%Y%m%d_%H%M%S")
-        nombre_archivo = f"ventas_nube_cacao_{fecha_actual}.pdf"
-        
-        return send_file(
-            archivo,
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name=nombre_archivo
-        )
-    except Exception as e:
-        flash(f"Error al exportar a PDF: {str(e)}", "danger")
-        return redirect("/respaldos")
-
-
-@app.route("/respaldos/descargar/sql")
-def descargar_sql():
-    """Descarga el respaldo en formato SQL"""
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    
-    try:
-        archivo = exportar_sql()
-        
-        if archivo is None:
-            flash("No hay datos para exportar.", "warning")
-            return redirect("/respaldos")
-        
-        fecha_actual = datetime.now().strftime("%Y%m%d_%H%M%S")
-        nombre_archivo = f"ventas_nube_cacao_{fecha_actual}.sql"
-        
-        return send_file(
-            archivo,
-            mimetype='text/plain',
-            as_attachment=True,
-            download_name=nombre_archivo
-        )
-    except Exception as e:
-        flash(f"Error al exportar a SQL: {str(e)}", "danger")
-        return redirect("/respaldos")
-from services.scheduler_service import (
-    iniciar_scheduler,
-    detener_scheduler,
-    guardar_configuracion,
-    cargar_configuracion,
-    obtener_proximos_respaldos,
-    obtener_historial_respaldos,
-    realizar_respaldo_automatico
-)
-
-# Agregar estas rutas antes del if __name__ == "__main__":
-
-# ======================== CONFIGURACIÓN DE RESPALDOS AUTOMÁTICOS ========================
-@app.route("/respaldos/configuracion", methods=["GET"])
-def configuracion_respaldos():
-    """Página de configuración de respaldos automáticos"""
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    
-    config = cargar_configuracion()
-    proximos = obtener_proximos_respaldos()
-    historial = obtener_historial_respaldos(limite=20)
-    
-    return render_template(
-        "configuracion_respaldos.html",
-        config=config,
-        proximos=proximos,
-        historial=historial
-    )
-
-
-@app.route("/respaldos/configuracion/guardar", methods=["POST"])
-def guardar_configuracion_respaldos():
-    """Guarda la configuración de respaldos automáticos"""
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    
-    try:
-        # Obtener datos del formulario
-        config = {
-            "activo": request.form.get("activo") == "on",
-            "hora": request.form.get("hora", "02:00"),
-            "frecuencia": request.form.get("frecuencia", "diario"),
-            "dia_semana": request.form.get("dia_semana", "monday"),
-            "dia_mes": int(request.form.get("dia_mes", 1)),
-            "formato": request.form.get("formato", "todos"),
-            "limpiar_antiguos": request.form.get("limpiar_antiguos") == "on",
-            "dias_retener": int(request.form.get("dias_retener", 30))
-        }
-        
-        # Guardar en base de datos
-        if guardar_configuracion(config):
-            # Reiniciar scheduler con nueva configuración
-            detener_scheduler()
-            if config["activo"]:
-                iniciar_scheduler(config)
-            
-            flash("Configuración de respaldos guardada exitosamente.", "success")
-        else:
-            flash("Error al guardar la configuración.", "danger")
-    
-    except Exception as e:
-        flash(f"Error al guardar configuración: {str(e)}", "danger")
-    
-    return redirect("/respaldos/configuracion")
-
-
-@app.route("/respaldos/ejecutar-ahora", methods=["POST"])
-def ejecutar_respaldo_manual():
-    """Ejecuta un respaldo manual inmediatamente"""
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    
-    try:
-        formato = request.form.get("formato", "todos")
-        realizar_respaldo_automatico(formato=formato)
-        flash(f"Respaldo {formato} ejecutado exitosamente. Revisa la carpeta 'backups_automaticos'.", "success")
-    except Exception as e:
-        flash(f"Error al ejecutar respaldo: {str(e)}", "danger")
-    
-    return redirect("/respaldos/configuracion")
-
-
-# ======================== INICIAR SCHEDULER AL ARRANCAR LA APP ========================
-# Agregar esto ANTES del if __name__ == "__main__":
-
-# Cargar configuración e iniciar scheduler al arrancar
-config_inicial = cargar_configuracion()
-if config_inicial.get("activo", False):
-    iniciar_scheduler(config_inicial)
-    print("✅ Respaldos automáticos activados")
 if __name__ == "__main__":
     app.run(debug=True, port=5001)

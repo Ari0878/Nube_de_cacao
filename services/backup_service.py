@@ -1,274 +1,315 @@
 # services/backup_service.py
-import pandas as pd
+
+import os
+import json
 from datetime import datetime
-import io
-from reportlab.lib import colors
+from io import BytesIO
+import pandas as pd
 from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.units import inch
-from db import collection
-import pymongo
+from db import collection, db
+import pickle
+
+# Directorio para almacenar metadatos de respaldos
+BACKUP_DIR = "backups_metadata"
+if not os.path.exists(BACKUP_DIR):
+    os.makedirs(BACKUP_DIR)
+
+METADATA_FILE = os.path.join(BACKUP_DIR, "backup_metadata.json")
 
 
-def exportar_excel():
-    """
-    Exporta todas las ventas a un archivo Excel en memoria.
-    Retorna un objeto BytesIO listo para descarga.
-    """
-    try:
-        # Obtener todas las ventas
-        ventas = list(collection.find())
-        
-        if not ventas:
-            return None
-        
-        # Convertir a DataFrame
-        df_ventas = []
-        for venta in ventas:
-            fecha_obj = venta.get('fecha', '')
-            if isinstance(fecha_obj, datetime):
-                fecha_str = fecha_obj.strftime('%Y-%m-%d %H:%M:%S')
-            else:
-                fecha_str = str(fecha_obj)
-            
-            df_ventas.append({
-                'ID': str(venta.get('_id', '')),
-                'Cliente': venta.get('cliente', ''),
-                'Tipo de Café': venta.get('tipo', ''),
-                'Cantidad': venta.get('cantidad', 0),
-                'Total': venta.get('total', 0.0),
-                'Fecha': fecha_str
-            })
-        
-        df = pd.DataFrame(df_ventas)
-        
-        # Crear archivo Excel en memoria
-        output = io.BytesIO()
-        
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, sheet_name='Ventas', index=False)
-            
-            # Ajustar ancho de columnas
-            worksheet = writer.sheets['Ventas']
-            for idx, col in enumerate(df.columns):
-                max_length = max(
-                    df[col].astype(str).apply(len).max(),
-                    len(col)
-                ) + 2
-                worksheet.column_dimensions[chr(65 + idx)].width = min(max_length, 50)
-        
-        output.seek(0)
-        return output
-        
-    except Exception as e:
-        print(f"Error al exportar a Excel: {e}")
-        return None
+def cargar_metadata():
+    """Carga el metadata de respaldos anteriores"""
+    if os.path.exists(METADATA_FILE):
+        with open(METADATA_FILE, 'r') as f:
+            return json.load(f)
+    return {
+        "ultimo_completo": None,
+        "ultimo_incremental": None,
+        "ultimo_diferencial": None,
+        "registros_respaldados": []
+    }
 
 
-def exportar_pdf():
+def guardar_metadata(metadata):
+    """Guarda el metadata de respaldos"""
+    with open(METADATA_FILE, 'w') as f:
+        json.dump(metadata, ensure_ascii=False, indent=2, fp=f)
+
+
+def generar_backup_completo():
     """
-    Exporta todas las ventas a un archivo PDF en memoria.
-    Retorna un objeto BytesIO listo para descarga.
+    Genera un respaldo completo de todas las ventas
+    Retorna: (datos, metadata_actualizado)
     """
-    try:
-        # Obtener todas las ventas
-        ventas = list(collection.find().sort("fecha", -1))
+    ventas = list(collection.find({}))
+    
+    # Convertir ObjectId a string
+    for venta in ventas:
+        venta["_id"] = str(venta["_id"])
+        if isinstance(venta.get("fecha"), datetime):
+            venta["fecha"] = venta["fecha"].isoformat()
+    
+    # Actualizar metadata
+    metadata = cargar_metadata()
+    metadata["ultimo_completo"] = datetime.now().isoformat()
+    metadata["registros_respaldados"] = [str(v["_id"]) for v in ventas]
+    guardar_metadata(metadata)
+    
+    return ventas, len(ventas)
+
+
+def generar_backup_incremental():
+    """
+    Genera un respaldo incremental (solo registros nuevos desde el último respaldo)
+    Retorna: (datos, cantidad)
+    """
+    metadata = cargar_metadata()
+    
+    # Si no hay respaldo previo, hacer completo
+    if not metadata.get("ultimo_incremental") and not metadata.get("ultimo_completo"):
+        return generar_backup_completo()
+    
+    # Obtener la fecha del último respaldo
+    ultimo_respaldo = metadata.get("ultimo_incremental") or metadata.get("ultimo_completo")
+    fecha_ultimo = datetime.fromisoformat(ultimo_respaldo)
+    
+    # Obtener solo registros nuevos
+    ventas = list(collection.find({"fecha": {"$gt": fecha_ultimo}}))
+    
+    for venta in ventas:
+        venta["_id"] = str(venta["_id"])
+        if isinstance(venta.get("fecha"), datetime):
+            venta["fecha"] = venta["fecha"].isoformat()
+    
+    # Actualizar metadata
+    metadata["ultimo_incremental"] = datetime.now().isoformat()
+    metadata["registros_respaldados"].extend([str(v["_id"]) for v in ventas])
+    metadata["registros_respaldados"] = list(set(metadata["registros_respaldados"]))
+    guardar_metadata(metadata)
+    
+    return ventas, len(ventas)
+
+
+def generar_backup_diferencial():
+    """
+    Genera un respaldo diferencial (cambios desde el último respaldo completo)
+    Retorna: (datos, cantidad)
+    """
+    metadata = cargar_metadata()
+    
+    # Si no hay respaldo completo, hacer uno
+    if not metadata.get("ultimo_completo"):
+        return generar_backup_completo()
+    
+    fecha_completo = datetime.fromisoformat(metadata["ultimo_completo"])
+    
+    # Obtener registros desde el último completo
+    ventas = list(collection.find({"fecha": {"$gt": fecha_completo}}))
+    
+    for venta in ventas:
+        venta["_id"] = str(venta["_id"])
+        if isinstance(venta.get("fecha"), datetime):
+            venta["fecha"] = venta["fecha"].isoformat()
+    
+    # Actualizar metadata
+    metadata["ultimo_diferencial"] = datetime.now().isoformat()
+    guardar_metadata(metadata)
+    
+    return ventas, len(ventas)
+
+
+def generar_excel(ventas, tipo_backup):
+    """
+    Genera un archivo Excel con los datos de respaldo
+    Retorna: BytesIO con el contenido del Excel
+    """
+    if not ventas:
+        # Crear DataFrame vacío con columnas
+        df = pd.DataFrame(columns=["_id", "cliente", "tipo", "cantidad", "total", "fecha"])
+    else:
+        df = pd.DataFrame(ventas)
+    
+    # Crear archivo en memoria
+    output = BytesIO()
+    
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Ventas', index=False)
         
-        if not ventas:
-            return None
+        # Agregar hoja con información del respaldo
+        info_df = pd.DataFrame({
+            'Información del Respaldo': [
+                'Tipo de Respaldo',
+                'Fecha de Generación',
+                'Total de Registros',
+                'Sistema'
+            ],
+            'Valor': [
+                tipo_backup.upper(),
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                len(ventas),
+                'Nube de Cacao - Sistema de Ventas'
+            ]
+        })
+        info_df.to_excel(writer, sheet_name='Info Respaldo', index=False)
+    
+    output.seek(0)
+    return output
+
+
+def generar_pdf(ventas, tipo_backup):
+    """
+    Genera un archivo PDF con los datos de respaldo
+    Retorna: BytesIO con el contenido del PDF
+    """
+    output = BytesIO()
+    doc = SimpleDocTemplate(output, pagesize=letter)
+    elementos = []
+    
+    # Estilos
+    styles = getSampleStyleSheet()
+    titulo_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        textColor=colors.HexColor('#4A2C2A'),
+        spaceAfter=30,
+        alignment=1  # Centrado
+    )
+    
+    # Título
+    titulo = Paragraph(f"Respaldo de Ventas - {tipo_backup.upper()}", titulo_style)
+    elementos.append(titulo)
+    
+    # Información del respaldo
+    info_data = [
+        ['Fecha de Generación:', datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
+        ['Tipo de Respaldo:', tipo_backup.upper()],
+        ['Total de Registros:', str(len(ventas))],
+        ['Sistema:', 'Nube de Cacao']
+    ]
+    
+    info_table = Table(info_data, colWidths=[2*inch, 3*inch])
+    info_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F5E6D3')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#4A2C2A')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.grey)
+    ]))
+    
+    elementos.append(info_table)
+    elementos.append(Spacer(1, 0.5*inch))
+    
+    # Tabla de ventas
+    if ventas:
+        # Encabezados
+        datos_tabla = [['Cliente', 'Tipo', 'Cantidad', 'Total', 'Fecha']]
         
-        # Crear PDF en memoria
-        output = io.BytesIO()
-        doc = SimpleDocTemplate(output, pagesize=A4, 
-                              rightMargin=30, leftMargin=30,
-                              topMargin=50, bottomMargin=30)
-        
-        # Estilos
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=24,
-            textColor=colors.HexColor('#3E2723'),
-            spaceAfter=30,
-            alignment=1  # Centro
-        )
-        
-        # Elementos del documento
-        elements = []
-        
-        # Título
-        title = Paragraph("Historial de Ventas - Nube de Cacao", title_style)
-        elements.append(title)
-        
-        # Fecha de generación
-        fecha_generacion = Paragraph(
-            f"<b>Fecha de generación:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            styles['Normal']
-        )
-        elements.append(fecha_generacion)
-        elements.append(Spacer(1, 20))
-        
-        # Tabla de datos
-        data = [['Cliente', 'Tipo', 'Cantidad', 'Total', 'Fecha']]
-        
-        for venta in ventas:
-            fecha_str = venta.get('fecha', '').strftime('%Y-%m-%d %H:%M') if isinstance(venta.get('fecha'), datetime) else str(venta.get('fecha', ''))
-            data.append([
-                str(venta.get('cliente', '')),
-                str(venta.get('tipo', '')),
+        # Datos
+        for venta in ventas[:100]:  # Limitar a 100 registros para el PDF
+            datos_tabla.append([
+                venta.get('cliente', 'N/A'),
+                venta.get('tipo', 'N/A'),
                 str(venta.get('cantidad', 0)),
-                f"${venta.get('total', 0.0):.2f}",
-                fecha_str
+                f"${venta.get('total', 0):.2f}",
+                venta.get('fecha', 'N/A')[:19] if isinstance(venta.get('fecha'), str) else 'N/A'
             ])
         
-        # Crear tabla
-        table = Table(data, colWidths=[2*inch, 1.5*inch, 1*inch, 1*inch, 1.5*inch])
-        
-        # Estilo de tabla
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#6D4C41')),
+        tabla = Table(datos_tabla, colWidths=[1.5*inch, 1.2*inch, 0.8*inch, 0.8*inch, 1.5*inch])
+        tabla.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4A2C2A')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 12),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#EFEBE9')]),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
         ]))
         
-        elements.append(table)
+        elementos.append(tabla)
         
-        # Resumen
-        elements.append(Spacer(1, 30))
-        total_ventas = sum(v.get('total', 0) for v in ventas)
-        resumen = Paragraph(
-            f"<b>Total de ventas:</b> {len(ventas)} | <b>Ingresos totales:</b> ${total_ventas:.2f}",
-            styles['Normal']
-        )
-        elements.append(resumen)
-        
-        # Construir PDF
-        doc.build(elements)
-        output.seek(0)
-        
-        return output
-        
-    except Exception as e:
-        print(f"Error al exportar a PDF: {e}")
-        return None
+        if len(ventas) > 100:
+            nota = Paragraph(f"<i>Nota: Se muestran los primeros 100 de {len(ventas)} registros totales.</i>", 
+                           styles['Normal'])
+            elementos.append(Spacer(1, 0.2*inch))
+            elementos.append(nota)
+    else:
+        sin_datos = Paragraph("<i>No hay registros para mostrar en este respaldo.</i>", styles['Normal'])
+        elementos.append(sin_datos)
+    
+    doc.build(elementos)
+    output.seek(0)
+    return output
 
 
-def exportar_sql():
+def generar_sql(ventas, tipo_backup):
     """
-    Exporta todas las ventas como script SQL (INSERT statements).
-    Retorna un objeto BytesIO con el contenido SQL.
+    Genera un archivo SQL con los datos de respaldo
+    Retorna: BytesIO con el contenido SQL
     """
-    try:
-        # Obtener todas las ventas
-        ventas = list(collection.find())
-        
-        if not ventas:
-            return None
-        
-        # Crear script SQL
-        sql_content = []
-        
-        # Header
-        sql_content.append("-- Respaldo de Base de Datos - Nube de Cacao")
-        sql_content.append(f"-- Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        sql_content.append("-- Total de registros: {}".format(len(ventas)))
-        sql_content.append("")
-        sql_content.append("-- Crear tabla si no existe")
-        sql_content.append("CREATE TABLE IF NOT EXISTS ventas (")
-        sql_content.append("    id VARCHAR(255) PRIMARY KEY,")
-        sql_content.append("    cliente VARCHAR(255),")
-        sql_content.append("    tipo VARCHAR(100),")
-        sql_content.append("    cantidad INT,")
-        sql_content.append("    total DECIMAL(10, 2),")
-        sql_content.append("    fecha DATETIME")
-        sql_content.append(");")
-        sql_content.append("")
-        sql_content.append("-- Datos")
-        
-        # INSERT statements
+    output = BytesIO()
+    
+    # Escribir encabezado
+    sql_content = f"""-- ============================================
+-- Respaldo de Base de Datos - Nube de Cacao
+-- Tipo: {tipo_backup.upper()}
+-- Fecha: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+-- Total de Registros: {len(ventas)}
+-- ============================================
+
+-- Crear tabla si no existe
+CREATE TABLE IF NOT EXISTS ventas (
+    _id VARCHAR(50) PRIMARY KEY,
+    cliente VARCHAR(255),
+    tipo VARCHAR(100),
+    cantidad INT,
+    total DECIMAL(10, 2),
+    fecha DATETIME
+);
+
+"""
+    
+    # Agregar instrucciones INSERT
+    if ventas:
+        sql_content += "-- Insertar datos\n"
         for venta in ventas:
-            id_venta = str(venta.get('_id', ''))
-            cliente = str(venta.get('cliente', '')).replace("'", "''")
-            tipo = str(venta.get('tipo', '')).replace("'", "''")
+            cliente = venta.get('cliente', '').replace("'", "''")
+            tipo = venta.get('tipo', '').replace("'", "''")
             cantidad = venta.get('cantidad', 0)
             total = venta.get('total', 0.0)
+            fecha = venta.get('fecha', datetime.now().isoformat())[:19].replace('T', ' ')
+            _id = venta.get('_id', '')
             
-            fecha = venta.get('fecha', '')
-            if isinstance(fecha, datetime):
-                fecha_str = fecha.strftime('%Y-%m-%d %H:%M:%S')
-            else:
-                fecha_str = str(fecha)
-            
-            insert = f"INSERT INTO ventas (id, cliente, tipo, cantidad, total, fecha) VALUES ('{id_venta}', '{cliente}', '{tipo}', {cantidad}, {total:.2f}, '{fecha_str}');"
-            sql_content.append(insert)
-        
-        # Convertir a bytes
-        sql_text = "\n".join(sql_content)
-        output = io.BytesIO(sql_text.encode('utf-8'))
-        output.seek(0)
-        
-        return output
-        
-    except Exception as e:
-        print(f"Error al exportar a SQL: {e}")
-        return None
+            sql_content += f"""INSERT INTO ventas (_id, cliente, tipo, cantidad, total, fecha) 
+VALUES ('{_id}', '{cliente}', '{tipo}', {cantidad}, {total}, '{fecha}');
+"""
+    else:
+        sql_content += "-- No hay registros para insertar\n"
+    
+    sql_content += "\n-- Fin del respaldo\n"
+    
+    output.write(sql_content.encode('utf-8'))
+    output.seek(0)
+    return output
 
 
-def obtener_estadisticas_backup():
+def obtener_info_respaldos():
     """
-    Retorna estadísticas útiles sobre la base de datos.
+    Retorna información sobre los respaldos realizados
     """
-    try:
-        total_registros = collection.count_documents({})
-        
-        # Total de ingresos
-        pipeline = [
-            {"$group": {
-                "_id": None,
-                "total_ingresos": {"$sum": "$total"},
-                "total_cantidad": {"$sum": "$cantidad"}
-            }}
-        ]
-        
-        resultado = list(collection.aggregate(pipeline))
-        
-        if resultado:
-            total_ingresos = resultado[0].get('total_ingresos', 0)
-            total_cantidad = resultado[0].get('total_cantidad', 0)
-        else:
-            total_ingresos = 0
-            total_cantidad = 0
-        
-        # Última venta
-        ultima_venta = collection.find_one(sort=[("fecha", pymongo.DESCENDING)])
-        fecha_ultima = None
-        if ultima_venta and 'fecha' in ultima_venta:
-            if isinstance(ultima_venta['fecha'], datetime):
-                fecha_ultima = ultima_venta['fecha'].strftime('%Y-%m-%d %H:%M:%S')
-        
-        return {
-            'total_registros': total_registros,
-            'total_ingresos': total_ingresos,
-            'total_cantidad': total_cantidad,
-            'fecha_ultima_venta': fecha_ultima
-        }
-        
-    except Exception as e:
-        print(f"Error al obtener estadísticas: {e}")
-        return {
-            'total_registros': 0,
-            'total_ingresos': 0,
-            'total_cantidad': 0,
-            'fecha_ultima_venta': None
-        }
+    metadata = cargar_metadata()
+    
+    return {
+        "ultimo_completo": metadata.get("ultimo_completo"),
+        "ultimo_incremental": metadata.get("ultimo_incremental"),
+        "ultimo_diferencial": metadata.get("ultimo_diferencial"),
+        "total_registros": len(metadata.get("registros_respaldados", []))
+    }

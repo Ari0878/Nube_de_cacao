@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Configuración de Respaldos | Nube de Cacao</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
         .config-card {
             background: white;
@@ -14,6 +14,11 @@
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
             margin-bottom: 25px;
             overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .config-card:hover {
+            transform: translateY(-2px);
         }
 
         .config-header {
@@ -70,19 +75,26 @@
 
         .status-badge {
             display: inline-block;
-            padding: 8px 20px;
+            padding: 10px 25px;
             border-radius: 50px;
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 1rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
 
         .status-active {
-            background: #d4edda;
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
             color: #155724;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
         }
 
         .status-inactive {
-            background: #f8d7da;
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
             color: #721c24;
         }
 
@@ -108,9 +120,29 @@
             border-left: none;
             padding-bottom: 0;
         }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-left: 4px solid var(--gold-primary);
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--coffee-dark);
+        }
+
+        .ejecutar-manual-box {
+            background: linear-gradient(135deg, #e8f5e9, #f1f8f4);
+            border: 2px dashed #28a745;
+            border-radius: 15px;
+            padding: 20px;
+        }
     </style>
 </head>
-
 <body>
     <div class="clouds-container">
         <div class="cloud cloud-1"></div>
@@ -123,30 +155,92 @@
             <a href="/respaldos" class="btn btn-outline-light btn-sm rounded-pill px-3">
                 <i class="fa-solid fa-arrow-left me-2"></i> Volver
             </a>
-            <span class="navbar-brand ms-auto fw-bold" style="letter-spacing: 1px;">
-                <i class="fa-solid fa-clock me-2"></i> Respaldos Automáticos
+            <span class="navbar-brand mx-auto fw-bold" style="letter-spacing: 1px;">
+                <i class="fa-solid fa-gear me-2"></i> Configuración de Respaldos
             </span>
+            <a href="/respaldos/archivos" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                <i class="fa-solid fa-folder-open me-2"></i> Ver Archivos
+            </a>
         </div>
     </nav>
 
     <div class="container mb-5">
+        <!-- Notificación de Archivos Pendientes -->
+        {% if stats_storage.total_archivos > 0 %}
+        <div class="alert alert-info border-0 shadow-sm mb-4" style="border-radius: 15px;">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h6 class="alert-heading mb-1">
+                        <i class="fa-solid fa-download fa-bounce me-2"></i>
+                        ¡Tienes {{ stats_storage.total_archivos }} archivo(s) listo(s) para descargar!
+                    </h6>
+                    <small>
+                        Los respaldos automáticos han sido generados. Descárgalos para guardarlos en tu computadora.
+                    </small>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="/respaldos/centro-descargas" class="btn btn-primary rounded-pill px-4">
+                        <i class="fa-solid fa-download me-2"></i>
+                        Ir a Descargas
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Estado Actual -->
-        <div class="text-center mb-4">
-            <div class="d-inline-block p-3 rounded-circle mb-3"
-                style="background: var(--bg-cream); box-shadow: 0 5px 15px rgba(0,0,0,0.05);">
-                <i class="fa-solid fa-robot fa-3x" style="color: var(--coffee-dark);"></i>
+        <div class="text-center mb-5">
+            <div class="d-inline-block p-4 rounded-circle mb-3"
+                style="background: linear-gradient(135deg, var(--gold-primary), #FFD700); box-shadow: 0 8px 25px rgba(218, 165, 32, 0.4);">
+                <i class="fa-solid fa-robot fa-3x text-white"></i>
             </div>
             <h2 class="fw-bold mb-3" style="color: var(--coffee-dark);">Respaldos Automáticos</h2>
             <div class="mb-3">
                 {% if config.activo %}
                 <span class="status-badge status-active">
-                    <i class="fa-solid fa-circle-check me-2"></i>Activo
+                    <i class="fa-solid fa-circle-check me-2"></i>Sistema Activo
                 </span>
                 {% else %}
                 <span class="status-badge status-inactive">
-                    <i class="fa-solid fa-circle-xmark me-2"></i>Inactivo
+                    <i class="fa-solid fa-circle-pause me-2"></i>Sistema Inactivo
                 </span>
                 {% endif %}
+            </div>
+            <p class="text-muted">
+                {% if config.activo %}
+                    Los respaldos se ejecutan automáticamente según tu configuración
+                {% else %}
+                    Activa los respaldos para proteger tus datos automáticamente
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Estadísticas Rápidas -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <small class="text-muted d-block mb-1">Total Respaldos</small>
+                    <div class="stat-number">{{ estadisticas.total_respaldos }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <small class="text-muted d-block mb-1">Exitosos</small>
+                    <div class="stat-number text-success">{{ estadisticas.exitosos }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <small class="text-muted d-block mb-1">Archivos Guardados</small>
+                    <div class="stat-number text-primary">{{ stats_storage.total_archivos }}</div>
+                    <a href="/respaldos/archivos" class="small text-decoration-none">Ver archivos →</a>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <small class="text-muted d-block mb-1">Espacio Usado</small>
+                    <div class="stat-number" style="font-size: 1.5rem;">{{ stats_storage.tamaño_total_mb }} MB</div>
+                </div>
             </div>
         </div>
 
@@ -155,15 +249,21 @@
             <div class="col-lg-8">
                 <div class="config-card">
                     <div class="config-header">
-                        <i class="fa-solid fa-gear me-2"></i> Configuración
+                        <i class="fa-solid fa-sliders me-2"></i> Configuración del Sistema
                     </div>
                     <div class="card-body p-4">
                         <form method="POST" action="/respaldos/configuracion/guardar">
                             <!-- Activar/Desactivar -->
-                            <div class="row mb-4">
+                            <div class="row mb-4 align-items-center p-3 rounded" style="background: #f8f9fa;">
                                 <div class="col-md-8">
-                                    <h5 class="fw-bold mb-2">Activar Respaldos Automáticos</h5>
-                                    <p class="text-muted small mb-0">Los respaldos se ejecutarán según el horario configurado</p>
+                                    <h5 class="fw-bold mb-2">
+                                        <i class="fa-solid fa-power-off me-2 text-success"></i>
+                                        Activar Respaldos Automáticos
+                                    </h5>
+                                    <p class="text-muted small mb-0">
+                                        Los respaldos se ejecutarán automáticamente según el horario configurado.
+                                        Los archivos NO se almacenan en el servidor, solo se registra el historial.
+                                    </p>
                                 </div>
                                 <div class="col-md-4 text-end">
                                     <label class="switch">
@@ -173,33 +273,46 @@
                                 </div>
                             </div>
 
-                            <hr>
+                            <hr class="my-4">
 
                             <!-- Hora de Ejecución -->
                             <div class="mb-4">
                                 <label class="form-label fw-bold">
                                     <i class="fa-solid fa-clock me-2 text-primary"></i>Hora de Ejecución
                                 </label>
-                                <input type="time" class="form-control" name="hora" value="{{ config.hora }}" required>
-                                <small class="text-muted">Formato 24 horas (ej: 14:30 para 2:30 PM)</small>
+                                <input type="time" class="form-control form-control-lg" name="hora" 
+                                       value="{{ config.hora }}" required 
+                                       style="max-width: 300px;">
+                                <small class="text-muted">
+                                    <i class="fa-solid fa-info-circle me-1"></i>
+                                    Formato 24 horas (ej: 14:30 para 2:30 PM). Se recomienda horarios de baja actividad.
+                                </small>
                             </div>
 
                             <!-- Frecuencia -->
                             <div class="mb-4">
                                 <label class="form-label fw-bold">
-                                    <i class="fa-solid fa-calendar me-2 text-primary"></i>Frecuencia
+                                    <i class="fa-solid fa-calendar-days me-2 text-primary"></i>Frecuencia
                                 </label>
-                                <select class="form-select" name="frecuencia" id="frecuencia" required>
-                                    <option value="diario" {% if config.frecuencia=='diario' %}selected{% endif %}>Diario</option>
-                                    <option value="semanal" {% if config.frecuencia=='semanal' %}selected{% endif %}>Semanal</option>
-                                    <option value="mensual" {% if config.frecuencia=='mensual' %}selected{% endif %}>Mensual</option>
+                                <select class="form-select form-select-lg" name="frecuencia" id="frecuencia" required>
+                                    <option value="diario" {% if config.frecuencia=='diario' %}selected{% endif %}>
+                                        📅 Diario - Todos los días
+                                    </option>
+                                    <option value="semanal" {% if config.frecuencia=='semanal' %}selected{% endif %}>
+                                        📆 Semanal - Una vez por semana
+                                    </option>
+                                    <option value="mensual" {% if config.frecuencia=='mensual' %}selected{% endif %}>
+                                        📊 Mensual - Una vez al mes
+                                    </option>
                                 </select>
                             </div>
 
                             <!-- Día de la Semana (solo para semanal) -->
                             <div class="mb-4" id="div_dia_semana" style="display: none;">
-                                <label class="form-label fw-bold">Día de la Semana</label>
-                                <select class="form-select" name="dia_semana">
+                                <label class="form-label fw-bold">
+                                    <i class="fa-solid fa-calendar-week me-2"></i>Día de la Semana
+                                </label>
+                                <select class="form-select form-select-lg" name="dia_semana">
                                     <option value="monday" {% if config.dia_semana=='monday' %}selected{% endif %}>Lunes</option>
                                     <option value="tuesday" {% if config.dia_semana=='tuesday' %}selected{% endif %}>Martes</option>
                                     <option value="wednesday" {% if config.dia_semana=='wednesday' %}selected{% endif %}>Miércoles</option>
@@ -212,9 +325,13 @@
 
                             <!-- Día del Mes (solo para mensual) -->
                             <div class="mb-4" id="div_dia_mes" style="display: none;">
-                                <label class="form-label fw-bold">Día del Mes</label>
-                                <input type="number" class="form-control" name="dia_mes" min="1" max="28" value="{{ config.dia_mes }}">
-                                <small class="text-muted">Número del día (1-28)</small>
+                                <label class="form-label fw-bold">
+                                    <i class="fa-solid fa-calendar-day me-2"></i>Día del Mes
+                                </label>
+                                <input type="number" class="form-control form-control-lg" name="dia_mes" 
+                                       min="1" max="28" value="{{ config.dia_mes }}" 
+                                       style="max-width: 200px;">
+                                <small class="text-muted">Número del día (1-28) para evitar problemas con meses cortos</small>
                             </div>
 
                             <!-- Formato de Respaldo -->
@@ -222,21 +339,38 @@
                                 <label class="form-label fw-bold">
                                     <i class="fa-solid fa-file-export me-2 text-primary"></i>Formato de Exportación
                                 </label>
-                                <select class="form-select" name="formato" required>
-                                    <option value="todos" {% if config.formato=='todos' %}selected{% endif %}>Todos los formatos (Excel, PDF, SQL)</option>
-                                    <option value="excel" {% if config.formato=='excel' %}selected{% endif %}>Solo Excel</option>
-                                    <option value="pdf" {% if config.formato=='pdf' %}selected{% endif %}>Solo PDF</option>
-                                    <option value="sql" {% if config.formato=='sql' %}selected{% endif %}>Solo SQL</option>
+                                <select class="form-select form-select-lg" name="formato" required>
+                                    <option value="todos" {% if config.formato=='todos' %}selected{% endif %}>
+                                        📦 Todos los formatos (Excel + PDF + SQL)
+                                    </option>
+                                    <option value="excel" {% if config.formato=='excel' %}selected{% endif %}>
+                                        📊 Solo Excel (.xlsx)
+                                    </option>
+                                    <option value="pdf" {% if config.formato=='pdf' %}selected{% endif %}>
+                                        📄 Solo PDF (.pdf)
+                                    </option>
+                                    <option value="sql" {% if config.formato=='sql' %}selected{% endif %}>
+                                        💾 Solo SQL (.sql)
+                                    </option>
                                 </select>
+                                <small class="text-muted">
+                                    <i class="fa-solid fa-lightbulb me-1"></i>
+                                    Los archivos se generarán solo cuando ejecutes un respaldo manual
+                                </small>
                             </div>
 
-                            <hr>
+                            <hr class="my-4">
 
                             <!-- Limpieza Automática -->
-                            <div class="row mb-4">
+                            <div class="row mb-4 align-items-center p-3 rounded" style="background: #fff3cd;">
                                 <div class="col-md-8">
-                                    <h5 class="fw-bold mb-2">Limpieza Automática</h5>
-                                    <p class="text-muted small mb-0">Eliminar respaldos antiguos automáticamente</p>
+                                    <h5 class="fw-bold mb-2">
+                                        <i class="fa-solid fa-broom me-2 text-warning"></i>
+                                        Limpieza del Historial
+                                    </h5>
+                                    <p class="text-muted small mb-0">
+                                        Eliminar entradas antiguas del historial automáticamente
+                                    </p>
                                 </div>
                                 <div class="col-md-4 text-end">
                                     <label class="switch">
@@ -247,43 +381,77 @@
                             </div>
 
                             <div class="mb-4">
-                                <label class="form-label fw-bold">Días a Retener</label>
-                                <input type="number" class="form-control" name="dias_retener" min="7" max="365" value="{{ config.dias_retener }}">
-                                <small class="text-muted">Los respaldos más antiguos que este número de días serán eliminados</small>
+                                <label class="form-label fw-bold">Días a Retener en Historial</label>
+                                <input type="number" class="form-control form-control-lg" name="dias_retener" 
+                                       min="7" max="365" value="{{ config.dias_retener }}" 
+                                       style="max-width: 200px;">
+                                <small class="text-muted">
+                                    Las entradas del historial más antiguas que este número de días serán eliminadas
+                                </small>
                             </div>
 
                             <!-- Botones -->
-                            <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-primary btn-lg rounded-pill">
+                            <div class="d-grid gap-2 mt-5">
+                                <button type="submit" class="btn btn-lg rounded-pill shadow-lg" 
+                                        style="background: linear-gradient(135deg, var(--gold-primary), #FFD700); 
+                                               border: none; color: white; font-weight: bold; padding: 15px;">
                                     <i class="fa-solid fa-save me-2"></i>Guardar Configuración
                                 </button>
                             </div>
                         </form>
 
-                        <!-- Ejecutar Ahora -->
-                        <div class="mt-4 p-3 bg-light rounded">
+                        <!-- Ejecutar Respaldo Manual -->
+                        <div class="ejecutar-manual-box mt-5">
                             <h6 class="fw-bold mb-3">
-                                <i class="fa-solid fa-play-circle me-2 text-success"></i>Ejecutar Respaldo Manual
+                                <i class="fa-solid fa-bolt me-2 text-success"></i>
+                                Ejecutar Respaldo Manual Ahora
                             </h6>
-                            <form method="POST" action="/respaldos/ejecutar-ahora" class="row g-2">
+                            <p class="text-muted small mb-3">
+                                Ejecuta un respaldo completo inmediatamente y guarda los archivos en el servidor.
+                                Los archivos se guardarán en la carpeta "backups_automaticos" y podrás descargarlos cuando quieras.
+                            </p>
+                            <form method="POST" action="/respaldos/ejecutar-ahora" class="row g-3">
                                 <div class="col-md-8">
                                     <select class="form-select" name="formato" required>
-                                        <option value="todos">Todos los formatos</option>
-                                        <option value="excel">Solo Excel</option>
-                                        <option value="pdf">Solo PDF</option>
-                                        <option value="sql">Solo SQL</option>
+                                        <option value="excel">📊 Solo Excel (.xlsx)</option>
+                                        <option value="pdf">📄 Solo PDF (.pdf)</option>
+                                        <option value="sql">💾 Solo SQL (.sql)</option>
+                                        <option value="todos" selected>📦 Todos los formatos (Excel + PDF + SQL)</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <button type="submit" class="btn btn-success w-100">
-                                        <i class="fa-solid fa-play me-2"></i>Ejecutar
+                                    <button type="submit" class="btn btn-success w-100 fw-bold shadow">
+                                        <i class="fa-solid fa-play me-2"></i>Ejecutar Ahora
                                     </button>
                                 </div>
                             </form>
-                            <small class="text-muted d-block mt-2">
-                                <i class="fa-solid fa-info-circle me-1"></i>
-                                Los archivos se guardarán en la carpeta "backups_automaticos"
-                            </small>
+                            <div class="mt-3 p-2 bg-white rounded">
+                                <small class="text-muted">
+                                    <i class="fa-solid fa-info-circle me-1"></i>
+                                    Los archivos se guardarán en el servidor. Puedes verlos en 
+                                    <a href="/respaldos/archivos" class="text-decoration-none fw-bold">
+                                        <i class="fa-solid fa-folder-open"></i> Ver Archivos
+                                    </a>
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Forzar Ejecución Automática (para pruebas) -->
+                        <div class="mt-4 p-3 border rounded" style="background: #fff3cd;">
+                            <h6 class="fw-bold mb-2">
+                                <i class="fa-solid fa-flask me-2 text-warning"></i>
+                                Prueba de Respaldo Automático
+                            </h6>
+                            <p class="text-muted small mb-2">
+                                Simula la ejecución del respaldo automático según tu configuración actual.
+                                Útil para probar que todo funciona correctamente.
+                            </p>
+                            <form method="POST" action="/respaldos/forzar-ejecucion">
+                                <button type="submit" class="btn btn-warning btn-sm">
+                                    <i class="fa-solid fa-rotate me-1"></i>
+                                    Simular Ejecución Automática
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -294,7 +462,7 @@
                 <!-- Próximos Respaldos -->
                 <div class="config-card">
                     <div class="config-header">
-                        <i class="fa-solid fa-calendar-days me-2"></i> Próximos Respaldos
+                        <i class="fa-solid fa-calendar-check me-2"></i> Próximas Ejecuciones
                     </div>
                     <div class="card-body p-4">
                         {% if proximos|length > 0 %}
@@ -311,16 +479,20 @@
                                             {{ proximo.proxima_ejecucion }}
                                         </div>
                                     </div>
-                                    <i class="fa-solid fa-circle-check text-success ms-2"></i>
+                                    <span class="badge bg-success">
+                                        <i class="fa-solid fa-check"></i>
+                                    </span>
                                 </div>
                             </div>
                             {% endfor %}
                         </div>
                         {% else %}
-                        <div class="text-center text-muted py-3">
-                            <i class="fa-solid fa-calendar-xmark fa-2x mb-2"></i>
-                            <p class="small mb-0">No hay respaldos programados</p>
-                            <p class="small text-muted">Activa los respaldos automáticos para comenzar</p>
+                        <div class="text-center text-muted py-4">
+                            <i class="fa-solid fa-calendar-xmark fa-3x mb-3 opacity-50"></i>
+                            <p class="mb-1 fw-bold">Sin Programación</p>
+                            <p class="small mb-0">
+                                Activa los respaldos automáticos arriba para comenzar
+                            </p>
                         </div>
                         {% endif %}
                     </div>
@@ -329,29 +501,134 @@
                 <!-- Historial Reciente -->
                 <div class="config-card">
                     <div class="config-header">
-                        <i class="fa-solid fa-history me-2"></i> Historial Reciente
+                        <i class="fa-solid fa-clock-rotate-left me-2"></i> Historial Reciente
                     </div>
                     <div class="card-body p-4" style="max-height: 400px; overflow-y: auto;">
                         {% if historial|length > 0 %}
                         <div class="list-group list-group-flush">
                             {% for item in historial %}
-                            <div class="list-group-item px-0 py-2">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <small class="text-muted d-block">{{ item.fecha }}</small>
-                                        <span class="badge bg-primary small">{{ item.formato }}</span>
-                                    </div>
+                            <div class="list-group-item px-0 py-3 border-0 border-bottom">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <small class="text-muted">
+                                        <i class="fa-solid fa-calendar me-1"></i>
+                                        {{ item.fecha }}
+                                    </small>
+                                    {% if item.estado == 'exitoso' or item.estado == 'manual' %}
                                     <i class="fa-solid fa-circle-check text-success"></i>
+                                    {% else %}
+                                    <i class="fa-solid fa-circle-xmark text-danger"></i>
+                                    {% endif %}
                                 </div>
+                                <div class="d-flex gap-2 align-items-center flex-wrap">
+                                    <span class="badge bg-primary">{{ item.formato }}</span>
+                                    <small class="text-muted">{{ item.cantidad_registros }} registros</small>
+                                    {% if item.archivos %}
+                                    <small class="text-success">
+                                        <i class="fa-solid fa-file me-1"></i>
+                                        {{ item.archivos|length }} archivo(s)
+                                    </small>
+                                    {% endif %}
+                                </div>
+                                {% if item.archivos and item.archivos|length > 0 %}
+                                <div class="mt-2">
+                                    {% for archivo in item.archivos %}
+                                    <small class="badge bg-light text-dark me-1">
+                                        <i class="fa-solid fa-paperclip me-1"></i>
+                                        {{ archivo }}
+                                    </small>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
                             </div>
                             {% endfor %}
                         </div>
                         {% else %}
-                        <div class="text-center text-muted py-3">
-                            <i class="fa-solid fa-box-open fa-2x mb-2"></i>
-                            <p class="small mb-0">Sin historial de respaldos</p>
+                        <div class="text-center text-muted py-4">
+                            <i class="fa-solid fa-box-open fa-3x mb-3 opacity-50"></i>
+                            <p class="mb-0 small">Sin historial aún</p>
                         </div>
                         {% endif %}
+                    </div>
+                </div>
+
+                <!-- Archivos Recientes -->
+                <div class="config-card">
+                    <div class="config-header d-flex justify-content-between align-items-center">
+                        <span>
+                            <i class="fa-solid fa-folder-open me-2"></i> Archivos Guardados
+                        </span>
+                        <a href="/respaldos/archivos" class="btn btn-sm btn-light">
+                            Ver todos
+                        </a>
+                    </div>
+                    <div class="card-body p-4">
+                        {% if archivos|length > 0 %}
+                        <div class="list-group list-group-flush">
+                            {% for archivo in archivos[:5] %}
+                            <div class="list-group-item px-0 py-2 border-0 border-bottom">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="flex-grow-1">
+                                        <div class="small fw-bold text-truncate" style="max-width: 200px;">
+                                            <i class="fa-solid fa-file me-1"></i>
+                                            {{ archivo.nombre }}
+                                        </div>
+                                        <div class="d-flex gap-2 align-items-center mt-1">
+                                            <span class="badge bg-primary small">{{ archivo.extension }}</span>
+                                            <small class="text-muted">{{ archivo.tamaño_mb }} MB</small>
+                                        </div>
+                                    </div>
+                                    <a href="/respaldos/descargar/{{ archivo.nombre }}" 
+                                       class="btn btn-sm btn-success rounded-pill">
+                                        <i class="fa-solid fa-download"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="/respaldos/archivos" class="btn btn-sm btn-outline-primary rounded-pill">
+                                Ver todos los archivos ({{ stats_storage.total_archivos }})
+                            </a>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-3">
+                            <i class="fa-solid fa-folder-open fa-2x mb-2 opacity-50"></i>
+                            <p class="small mb-0">Sin archivos guardados</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Ayuda -->
+                <div class="config-card">
+                    <div class="config-header">
+                        <i class="fa-solid fa-question-circle me-2"></i> Ayuda
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="small">
+                            <p class="mb-2">
+                                <strong><i class="fa-solid fa-info-circle me-1 text-info"></i> ¿Cómo funciona?</strong>
+                            </p>
+                            <ul class="mb-3 ps-3">
+                                <li class="mb-2">
+                                    <strong>Automáticos:</strong> Se generan según horario y se guardan en el servidor
+                                </li>
+                                <li class="mb-2">
+                                    <strong>Manuales:</strong> Usa "Ejecutar Ahora" para generar en cualquier momento
+                                </li>
+                                <li class="mb-2">
+                                    <strong>Archivos:</strong> Todos se guardan en "backups_automaticos/"
+                                </li>
+                                <li>
+                                    <strong>Descarga:</strong> Ve a "Ver Archivos" para descargarlos
+                                </li>
+                            </ul>
+                            <div class="alert alert-warning small mb-0" role="alert">
+                                <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                                <strong>Importante:</strong> Los archivos ocupan espacio en el servidor. 
+                                Activa la limpieza automática para eliminar archivos antiguos.
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -377,5 +654,4 @@
         });
     </script>
 </body>
-
 </html>
