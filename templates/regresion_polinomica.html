@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regresión Polinómica | Nube de Cacao</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        .metric-card {
+            background: linear-gradient(135deg, var(--coffee-light), var(--gold-primary));
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .card-premium {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-premium py-3">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/dashboard">
+                <i class="fa-solid fa-mug-hot me-2"></i> Nube de Cacao
+            </a>
+            <a href="/dashboard" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                <i class="fa-solid fa-arrow-left me-2"></i> Volver
+            </a>
+        </div>
+    </nav>
+
+    <main class="container mt-5 pt-4">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold" style="color: var(--coffee-dark);">Regresión Polinómica Interactiva</h2>
+            <p class="lead" style="color: var(--text-light);">Análisis de ventas con diagnóstico de errores residuales
+            </p>
+        </div>
+
+        {% if not modelo %}
+        <div class="alert alert-warning text-center">
+            <i class="fa-solid fa-exclamation-triangle me-2"></i>
+            No hay suficientes datos para entrenar el modelo. Registra al menos 10 ventas.
+        </div>
+        {% else %}
+
+        <!-- Control de grado -->
+        <div class="card-premium mb-4">
+            <h4 class="mb-3"><i class="fa-solid fa-sliders me-2" style="color: var(--gold-primary);"></i> Configuración
+                del Modelo</h4>
+            <form method="POST">
+                <div class="row align-items-end">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Grado del Polinomio: <span class="badge bg-secondary">{{ grado
+                                }}</span></label>
+                        <input type="range" class="form-range" name="grado" min="1" max="10" value="{{ grado }}"
+                            oninput="this.nextElementSibling.value = this.value">
+                        <output class="d-block text-muted small">Desliza para cambiar el grado (1-10)</output>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn w-100" style="background: var(--gold-primary); color: white;">
+                            <i class="fa-solid fa-sync-alt me-2"></i> Actualizar Modelo
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Información del modelo -->
+        <div class="alert alert-info text-center mb-4">
+            <i class="fa-solid fa-database me-2"></i>
+            Modelo entrenado con <strong>{{ modelo.num_datos }}</strong> ventas reales - Grado: <strong>{{ modelo.grado
+                }}</strong>
+        </div>
+
+        <!-- Métricas -->
+        <div class="row g-4 mb-5">
+            <div class="col-md-6">
+                <div class="metric-card">
+                    <div class="mb-2">R² (Coeficiente de determinación)</div>
+                    <div class="metric-value">{{ "%.3f"|format(modelo.r2) }}</div>
+                    <small>{% if modelo.r2 > 0.8 %}Excelente ajuste{% elif modelo.r2 > 0.6 %}Buen ajuste{% else %}Ajuste
+                        bajo{% endif %}</small>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="metric-card">
+                    <div class="mb-2">RMSE (Error cuadrático medio)</div>
+                    <div class="metric-value">${{ "%.2f"|format(modelo.rmse) }}</div>
+                    <small>Error promedio en predicciones</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Diagnóstico -->
+        <div class="alert alert-{{ modelo.color_diagnostico }} mb-5">
+            <h5 class="alert-heading"><i class="fa-solid fa-stethoscope me-2"></i> Diagnóstico del Modelo</h5>
+            <p class="mb-0">{{ modelo.diagnostico | safe }}</p>
+        </div>
+
+        <!-- Visualizaciones -->
+        <div class="row g-4 mb-5">
+            <div class="col-md-6">
+                <div class="card-premium">
+                    <h4 class="mb-3"><i class="fa-solid fa-chart-line me-2" style="color: var(--gold-primary);"></i>
+                        Ajuste del Modelo</h4>
+                    <div id="grafico-ajuste"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card-premium">
+                    <h4 class="mb-3"><i class="fa-solid fa-chart-scatter me-2" style="color: var(--gold-primary);"></i>
+                        Distribución de Residuales</h4>
+                    <div id="grafico-residuales"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Explicaciones -->
+        <div class="card-premium mb-5">
+            <h4 class="mb-3"><i class="fa-solid fa-book me-2" style="color: var(--gold-primary);"></i> Explicación de
+                Métricas</h4>
+            <div class="row">
+                <div class="col-md-6">
+                    <h6><strong>R² (Coeficiente de determinación):</strong></h6>
+                    <p>Mide cuánta variación de Y explica el modelo.</p>
+                    <ul>
+                        <li>Cercano a 1 → excelente ajuste</li>
+                        <li>Valor bajo → el modelo no explica bien la variación</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6><strong>RMSE (Error cuadrático medio raíz):</strong></h6>
+                    <p>Mide el error promedio en unidades de Y.</p>
+                    <ul>
+                        <li>Valor bajo → mayor precisión</li>
+                        <li>Valor alto → predicciones menos exactas</li>
+                    </ul>
+                </div>
+            </div>
+            <hr>
+            <h6><strong>Residuales:</strong></h6>
+            <p>Muestran los errores punto a punto (y - ŷ):</p>
+            <ul>
+                <li>Si se distribuyen aleatoriamente alrededor de 0 → el modelo es adecuado</li>
+                <li>Si tienen forma curva o patrón → hay subajuste o sobreajuste</li>
+                <li>Si son muy pequeños pero con oscilaciones → posible sobreajuste</li>
+            </ul>
+        </div>
+
+        <script>
+            // Datos del modelo
+            var xDatos = {{ modelo.x_datos | tojson }};
+            var yDatos = {{ modelo.y_datos | tojson }};
+            var xLinea = {{ modelo.x_linea | tojson }};
+            var yLinea = {{ modelo.y_linea | tojson }};
+            var residuales = {{ modelo.residuales | tojson }};
+
+            // Gráfico 1: Ajuste del modelo
+            var traceDatos = {
+                x: xDatos,
+                y: yDatos,
+                mode: 'markers',
+                type: 'scatter',
+                name: 'Datos Reales',
+                marker: {
+                    size: 8,
+                    color: '#5a3e2b',
+                    opacity: 0.6
+                }
+            };
+
+            var traceModelo = {
+                x: xLinea,
+                y: yLinea,
+                mode: 'lines',
+                type: 'scatter',
+                name: 'Modelo Polinómico (grado {{ grado }})',
+                line: {
+                    color: '#C5A059',
+                    width: 3
+                }
+            };
+
+            var layoutAjuste = {
+                title: {
+                    text: 'Ajuste del Modelo (grado {{ grado }})',
+                    font: { size: 16, color: '#5a3e2b' }
+                },
+                xaxis: { title: 'Cantidad' },
+                yaxis: { title: 'Total ($)' },
+                showlegend: true,
+                legend: { x: 0.02, y: 0.98 },
+                autosize: true,
+                height: 400
+            };
+
+            Plotly.newPlot('grafico-ajuste', [traceDatos, traceModelo], layoutAjuste, { responsive: true, displaylogo: false });
+
+            // Gráfico 2: Residuales
+            var traceResiduales = {
+                x: xDatos,
+                y: residuales,
+                mode: 'markers',
+                type: 'scatter',
+                name: 'Residuales',
+                marker: {
+                    size: 8,
+                    color: '#d97706',
+                    opacity: 0.6
+                }
+            };
+
+            var lineaCero = {
+                x: [Math.min(...xDatos), Math.max(...xDatos)],
+                y: [0, 0],
+                mode: 'lines',
+                type: 'scatter',
+                name: 'Línea de referencia (y=0)',
+                line: {
+                    color: 'red',
+                    width: 2,
+                    dash: 'dash'
+                }
+            };
+
+            var layoutResiduales = {
+                title: {
+                    text: 'Distribución de Residuales',
+                    font: { size: 16, color: '#5a3e2b' }
+                },
+                xaxis: { title: 'Cantidad' },
+                yaxis: { title: 'Error (y - ŷ)' },
+                showlegend: true,
+                legend: { x: 0.02, y: 0.98 },
+                autosize: true,
+                height: 400
+            };
+
+            Plotly.newPlot('grafico-residuales', [traceResiduales, lineaCero], layoutResiduales, { responsive: true, displaylogo: false });
+
+            // Responsividad
+            window.addEventListener('resize', function () {
+                Plotly.Plots.resize('grafico-ajuste');
+                Plotly.Plots.resize('grafico-residuales');
+            });
+        </script>
+        {% endif %}
+    </main>
+
+    <button id="theme-toggle" title="Cambiar tema"
+        style="position: fixed; bottom: 25px; right: 25px; width: 50px; height: 50px; border-radius: 50%; border: none; background: var(--gold-primary); color: #fff; font-size: 22px; box-shadow: 0 6px 15px rgba(0,0,0,0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10000;">🌓</button>
+
+    <script>
+        var toggleBtn = document.getElementById('theme-toggle');
+        var savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+        toggleBtn.addEventListener('click', function () {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

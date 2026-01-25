@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archivos de Respaldo | Nube de Cacao</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .archivo-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        
+        .archivo-card:hover {
+            transform: translateX(5px);
+            border-left-color: var(--gold-primary);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .file-icon {
+            font-size: 2.5rem;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+        }
+        
+        .excel-icon {
+            background: linear-gradient(135deg, #1D6F42, #217346);
+            color: white;
+        }
+        
+        .pdf-icon {
+            background: linear-gradient(135deg, #DC3545, #C82333);
+            color: white;
+        }
+        
+        .sql-icon {
+            background: linear-gradient(135deg, #0D6EFD, #0A58CA);
+            color: white;
+        }
+        
+        .stats-box {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 15px;
+            padding: 20px;
+            border-left: 4px solid var(--gold-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="clouds-container">
+        <div class="cloud cloud-1"></div>
+        <div class="cloud cloud-2"></div>
+        <div class="cloud cloud-3"></div>
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-premium py-3 mb-5">
+        <div class="container">
+            <a href="/respaldos/configuracion" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                <i class="fa-solid fa-arrow-left me-2"></i> Volver
+            </a>
+            <span class="navbar-brand mx-auto fw-bold" style="letter-spacing: 1px;">
+                <i class="fa-solid fa-folder-open me-2"></i> Archivos de Respaldo
+            </span>
+            <a href="/respaldos" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                <i class="fa-solid fa-database me-2"></i> Respaldos
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mb-5">
+        <!-- Estadísticas de Storage -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stats-box text-center">
+                    <i class="fa-solid fa-file fa-2x mb-2" style="color: var(--gold-primary);"></i>
+                    <h3 class="fw-bold mb-0">{{ stats.total_archivos }}</h3>
+                    <small class="text-muted">Total Archivos</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-box text-center">
+                    <i class="fa-solid fa-hard-drive fa-2x mb-2 text-primary"></i>
+                    <h3 class="fw-bold mb-0">{{ stats.tamaño_total_mb }} MB</h3>
+                    <small class="text-muted">Espacio Usado</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-box text-center">
+                    <i class="fa-solid fa-file-excel fa-2x mb-2 text-success"></i>
+                    <h3 class="fw-bold mb-0">{{ stats.por_tipo.get('XLSX', 0) }}</h3>
+                    <small class="text-muted">Archivos Excel</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-box text-center">
+                    <i class="fa-solid fa-file-pdf fa-2x mb-2 text-danger"></i>
+                    <h3 class="fw-bold mb-0">{{ stats.por_tipo.get('PDF', 0) }}</h3>
+                    <small class="text-muted">Archivos PDF</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Acciones Rápidas -->
+        <div class="card border-0 shadow-sm mb-4" style="border-radius: 15px;">
+            <div class="card-body p-4">
+                <div class="row align-items-center">
+                    <!-- <div class="col-md-8">
+                        <h5 class="mb-2">
+                            <i class="fa-solid fa-broom me-2 text-warning"></i>
+                            Limpieza de Archivos
+                        </h5>
+                        <p class="text-muted small mb-0">
+                            Elimina archivos más antiguos que el número de días configurado
+                        </p>
+                    </div> -->
+                    <!-- <div class="col-md-4 text-end">
+                        <form method="POST" action="/respaldos/limpiar-antiguos" style="display: inline;">
+                            <button type="submit" class="btn btn-warning rounded-pill px-4" 
+                                    onclick="return confirm('¿Estás seguro de eliminar archivos antiguos?')">
+                                <i class="fa-solid fa-trash me-2"></i>
+                                Limpiar Antiguos
+                            </button>
+                        </form>
+                    </div> -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de Archivos -->
+        <div class="card border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="card-header text-white py-3" 
+                 style="background: linear-gradient(135deg, var(--gold-primary), var(--coffee-light)); border-radius: 20px 20px 0 0;">
+                <h5 class="mb-0 fw-bold">
+                    <i class="fa-solid fa-list me-2"></i>
+                    Archivos Guardados ({{ archivos|length }})
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                {% if archivos|length > 0 %}
+                <div class="list-group list-group-flush">
+                    {% for archivo in archivos %}
+                    <div class="list-group-item archivo-card border-0 border-bottom px-0 py-3">
+                        <div class="row align-items-center">
+                            <!-- Icono -->
+                            <div class="col-auto">
+                                <div class="file-icon 
+                                    {% if archivo.extension == 'XLSX' %}excel-icon
+                                    {% elif archivo.extension == 'PDF' %}pdf-icon
+                                    {% elif archivo.extension == 'SQL' %}sql-icon
+                                    {% endif %}">
+                                    <i class="fa-solid fa-file-{{ archivo.extension|lower }}"></i>
+                                </div>
+                            </div>
+                            
+                            <!-- Información -->
+                            <div class="col">
+                                <h6 class="mb-1 fw-bold">{{ archivo.nombre }}</h6>
+                                <div class="d-flex gap-3 small text-muted">
+                                    <span>
+                                        <i class="fa-solid fa-calendar me-1"></i>
+                                        {{ archivo.fecha }}
+                                    </span>
+                                    <span>
+                                        <i class="fa-solid fa-file me-1"></i>
+                                        {{ archivo.tamaño_mb }} MB
+                                    </span>
+                                    <span class="badge bg-primary">{{ archivo.extension }}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Acciones -->
+                            <div class="col-auto">
+                                <div class="btn-group">
+                                    <a href="/respaldos/descargar/{{ archivo.nombre }}" 
+                                       class="btn btn-success btn-sm rounded-pill me-2">
+                                        <i class="fa-solid fa-download me-1"></i>
+                                        Descargar
+                                    </a>
+                                    <form method="POST" action="/respaldos/eliminar/{{ archivo.nombre }}" 
+                                          style="display: inline;"
+                                          onsubmit="return confirm('¿Estás seguro de eliminar este archivo?')">
+                                        <button type="submit" class="btn btn-danger btn-sm rounded-pill">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fa-solid fa-inbox fa-4x mb-3 opacity-25"></i>
+                    <h4 class="text-muted">No hay archivos guardados</h4>
+                    <p class="text-muted mb-4">
+                        Los archivos de respaldo aparecerán aquí cuando se ejecuten respaldos automáticos o manuales
+                    </p>
+                    <a href="/respaldos/configuracion" class="btn btn-primary rounded-pill px-4">
+                        <i class="fa-solid fa-gear me-2"></i>
+                        Configurar Respaldos
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Ayuda -->
+        <div class="alert alert-info mt-4 border-0 shadow-sm" style="border-radius: 15px;">
+            <h6 class="alert-heading">
+                <i class="fa-solid fa-info-circle me-2"></i>
+                Información sobre los archivos
+            </h6>
+            <hr>
+            <ul class="mb-0 small">
+                <li class="mb-2">
+                    <strong>Automáticos:</strong> Se generan según la programación configurada (ej: backup_auto_20250121_143022.xlsx)
+                </li>
+                <li class="mb-2">
+                    <strong>Manuales:</strong> Se generan al hacer click en "Ejecutar Manual" (ej: backup_manual_20250121_150030.pdf)
+                </li>
+                <li class="mb-2">
+                    <strong>Limpieza:</strong> Los archivos antiguos se eliminan automáticamente si está configurado
+                </li>
+                <li>
+                    <strong>Descarga:</strong> Haz click en "Descargar" para obtener una copia del archivo en tu computadora
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Análisis de Ventas | Nube de Cacao</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Estilos específicos para la barra de progreso y overlay */
+        #loadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-cream);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease;
+        }
+
+        .progress-container {
+            width: 300px;
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 20px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .progress-bar-custom {
+            width: 0%;
+            height: 8px;
+            background: linear-gradient(90deg, var(--gold-primary), var(--coffee-light));
+            border-radius: 20px;
+            transition: width 0.1s linear;
+        }
+
+        .loading-text {
+            font-weight: 600;
+            color: var(--coffee-dark);
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        /* Animación de entrada para el contenido */
+        .content-fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.8s ease;
+        }
+
+        .content-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Tarjetas de métricas */
+        .metric-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease;
+            height: 100%;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .metric-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Overlay de Carga -->
+    <div id="loadingOverlay">
+        <div class="mb-3">
+            <i class="fa-solid fa-chart-pie fa-3x fa-spin"
+                style="color: var(--gold-primary); --fa-animation-duration: 3s;"></i>
+        </div>
+        <div class="loading-text" id="loadingText">Iniciando análisis...</div>
+        <div class="progress-container">
+            <div class="progress-bar-custom" id="progressBar"></div>
+        </div>
+    </div>
+
+    <!-- Contenido Principal -->
+    <div class="clouds-container">
+        <div class="cloud cloud-1"></div>
+        <div class="cloud cloud-2"></div>
+        <div class="cloud cloud-3"></div>
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-premium py-3 mb-5">
+        <div class="container">
+            <a href="/dashboard" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                <i class="fa-solid fa-arrow-left me-2"></i> Volver
+            </a>
+            <span class="navbar-brand ms-auto fw-bold" style="letter-spacing: 1px;">
+                <i class="fa-solid fa-chart-line me-2"></i> Análisis Inteligente
+            </span>
+        </div>
+    </nav>
+
+    <div class="container content-fade-in" id="mainContent">
+        {% if resumen %}
+        <!-- Encabezado -->
+        <div class="text-center mb-5">
+            <h1 class="fw-bold display-5" style="color: var(--coffee-dark);">Resumen de Ventas</h1>
+            <p class="text-muted lead">Análisis en tiempo real de tu negocio</p>
+        </div>
+
+        <!-- Métricas Principales -->
+        <div class="row g-4 mb-5">
+            <!-- Total Ingresos -->
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="metric-icon" style="background: rgba(25, 135, 84, 0.1); color: #198754;">
+                        <i class="fa-solid fa-sack-dollar"></i>
+                    </div>
+                    <h5 class="text-muted mb-1">Ingresos Totales</h5>
+                    <h2 class="fw-bold mb-0" style="color: var(--coffee-dark);">${{
+                        "{:,.2f}".format(resumen.total_ingresos) }}</h2>
+                </div>
+            </div>
+            <!-- Total Productos -->
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="metric-icon" style="background: rgba(13, 110, 253, 0.1); color: #0d6efd;">
+                        <i class="fa-solid fa-mug-hot"></i>
+                    </div>
+                    <h5 class="text-muted mb-1">Tazas Vendidas</h5>
+                    <h2 class="fw-bold mb-0" style="color: var(--coffee-dark);">{{ resumen.total_productos }}</h2>
+                </div>
+            </div>
+            <!-- Precio Promedio -->
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="metric-icon" style="background: rgba(255, 193, 7, 0.1); color: #ffc107;">
+                        <i class="fa-solid fa-tag"></i>
+                    </div>
+                    <h5 class="text-muted mb-1">Precio Promedio</h5>
+                    <h2 class="fw-bold mb-0" style="color: var(--coffee-dark);">${{
+                        "{:,.2f}".format(resumen.precio_promedio) }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Tabla de Desglose -->
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm h-100" style="border-radius: 20px; overflow: hidden;">
+                    <div class="card-header bg-white border-0 py-3 px-4">
+                        <h5 class="fw-bold mb-0" style="color: var(--coffee-dark);"><i
+                                class="fa-solid fa-list me-2 text-muted"></i>Desglose por Tipo</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0 align-middle">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th class="ps-4 py-3">Tipo de Café</th>
+                                        <th class="text-center">Cantidad</th>
+                                        <th class="text-end pe-4">Total Ventas</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in resumen.ventas_por_tipo %}
+                                    <tr>
+                                        <td class="ps-4 fw-bold text-secondary">{{ item.tipo }}</td>
+                                        <td class="text-center"><span class="badge bg-secondary rounded-pill">{{
+                                                item.cantidad_total }}</span></td>
+                                        <td class="text-end pe-4 fw-bold text-success">${{
+                                            "{:,.2f}".format(item.total_ventas) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tendencias / Top -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100"
+                    style="border-radius: 20px; background: linear-gradient(135deg, var(--coffee-dark), #1a1a1a); color: white;">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold mb-4"><i class="fa-solid fa-star me-2 text-warning"></i>Tendencias</h5>
+
+                        <div class="mb-4">
+                            <small class="text-white-50 text-uppercase fw-bold">Producto Estrella</small>
+                            <div class="d-flex align-items-center mt-2">
+                                <div class="rounded-circle bg-white p-2 me-3 d-flex align-items-center justify-content-center"
+                                    style="width: 45px; height: 45px;">
+                                    <i class="fa-solid fa-trophy text-warning"></i>
+                                </div>
+                                <div>
+                                    <h4 class="fw-bold mb-0">{{ resumen.top_producto }}</h4>
+                                    <small class="text-white-50">Más vendido</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="border-secondary">
+
+                        <div>
+                            <small class="text-white-50 text-uppercase fw-bold">Cliente VIP</small>
+                            <div class="d-flex align-items-center mt-2">
+                                <div class="rounded-circle bg-white p-2 me-3 d-flex align-items-center justify-content-center"
+                                    style="width: 45px; height: 45px;">
+                                    <i class="fa-solid fa-crown text-warning"></i>
+                                </div>
+                                <div>
+                                    <h4 class="fw-bold mb-0">{{ resumen.top_cliente }}</h4>
+                                    <small class="text-white-50">Más compras</small>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% else %}
+        <div class="text-center py-5">
+            <div class="mb-3">
+                <i class="fa-solid fa-mug-hot fa-4x text-muted opacity-25"></i>
+            </div>
+            <h3 class="text-muted">No hay datos suficientes para analizar</h3>
+            <a href="/ventas/nueva" class="btn btn-primary mt-3">Registrar primera venta</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="{{ url_for('static', filename='i18n.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const overlay = document.getElementById('loadingOverlay');
+            const progressBar = document.getElementById('progressBar');
+            const loadingText = document.getElementById('loadingText');
+            const mainContent = document.getElementById('mainContent');
+
+            let progress = 0;
+            const steps = [
+                { pct: 20, text: "Conectando con Spark..." },
+                { pct: 45, text: "Procesando datasets..." },
+                { pct: 70, text: "Calculando regresiones..." },
+                { pct: 90, text: "Generando visualizaciones..." },
+                { pct: 100, text: "¡Listo!" }
+            ];
+
+            let stepIndex = 0;
+
+            const interval = setInterval(() => {
+                if (stepIndex >= steps.length) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        overlay.style.opacity = '0';
+                        setTimeout(() => {
+                            overlay.style.display = 'none';
+                            mainContent.classList.add('content-visible');
+                        }, 500);
+                    }, 500);
+                    return;
+                }
+
+                const step = steps[stepIndex];
+                progress = step.pct;
+                progressBar.style.width = progress + '%';
+                loadingText.textContent = step.text;
+                stepIndex++;
+
+            }, 600); // Velocidad de la simulación
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración de Respaldos | Nube de Cacao</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .config-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            margin-bottom: 25px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .config-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+
+        .config-header {
+            background: linear-gradient(135deg, var(--gold-primary) 0%, var(--coffee-light) 100%);
+            color: white;
+            padding: 20px 30px;
+            font-weight: 600;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: #28a745;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(26px);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            animation: pulse 2s infinite;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .status-active {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            color: #155724;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .status-inactive {
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            color: #721c24;
+        }
+
+        .timeline-item {
+            border-left: 3px solid var(--gold-primary);
+            padding-left: 20px;
+            padding-bottom: 20px;
+            position: relative;
+        }
+
+        .timeline-item:before {
+            content: "";
+            width: 12px;
+            height: 12px;
+            background: var(--gold-primary);
+            border-radius: 50%;
+            position: absolute;
+            left: -7.5px;
+            top: 5px;
+            box-shadow: 0 0 0 3px rgba(218, 165, 32, 0.2);
+        }
+
+        .timeline-item:last-child {
+            border-left: none;
+            padding-bottom: 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #ffffff, #f8f9fa);
+            border-left: 5px solid var(--gold-primary);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card.updating {
+            animation: pulseUpdate 1s ease-in-out;
+        }
+
+        @keyframes pulseUpdate {
+            0%, 100% { background: linear-gradient(135deg, #ffffff, #f8f9fa); }
+            50% { background: linear-gradient(135deg, #e3f2fd, #bbdefb); }
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--coffee-dark);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .ejecutar-manual-box {
+            background: linear-gradient(135deg, #e8f5e9, #f1f8f4);
+            border: 2px dashed #28a745;
+            border-radius: 15px;
+            padding: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .ejecutar-manual-box:hover {
+            border-color: #1e7e34;
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.2);
+        }
+
+        .email-config-box {
+            background: linear-gradient(135deg, #e3f2fd, #f1f8ff);
+            border: 2px dashed #2196F3;
+            border-radius: 15px;
+            padding: 25px;
+            transition: all 0.3s ease;
+            margin-top: 25px;
+        }
+
+        .email-config-box:hover {
+            border-color: #1976D2;
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.2);
+        }
+
+        .auto-refresh-badge {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            z-index: 1000;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .refreshing-spinner {
+            display: none;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+        .refreshing-spinner.active {
+            display: inline-block;
+        }
+
+        .last-updated {
+            font-size: 0.85rem;
+            color: #6c757d;
+            text-align: center;
+            margin-top: 15px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.02);
+            border-radius: 8px;
+        }
+
+        .auto-refresh-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .email-chip {
+            display: inline-flex;
+            align-items: center;
+            background: #e3f2fd;
+            border: 1px solid #2196F3;
+            border-radius: 20px;
+            padding: 8px 15px;
+            margin: 5px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .email-chip:hover {
+            background: #bbdefb;
+            transform: scale(1.05);
+        }
+
+        .email-chip .remove-email {
+            margin-left: 10px;
+            cursor: pointer;
+            color: #d32f2f;
+            font-weight: bold;
+            transition: color 0.2s;
+        }
+
+        .email-chip .remove-email:hover {
+            color: #b71c1c;
+        }
+
+        .email-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .email-status.active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .email-status.inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .btn-test-email {
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            border: none;
+            color: white;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .btn-test-email:hover {
+            background: linear-gradient(135deg, #1976D2, #1565C0);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--gold-primary);
+            box-shadow: 0 0 0 0.25rem rgba(218, 165, 32, 0.25);
+        }
+
+        .badge-new {
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body>
+    <div class="clouds-container">
+        <div class="cloud cloud-1"></div>
+        <div class="cloud cloud-2"></div>
+        <div class="cloud cloud-3"></div>
+    </div>
+
+    <!-- Badge de actualización automática -->
+    <div id="autoRefreshBadge" class="auto-refresh-badge" style="display: none;">
+        <div class="alert alert-info shadow-lg">
+            <i class="fa-solid fa-sync-alt fa-spin me-2"></i>
+            <span id="refreshMessage">Actualizando...</span>
+        </div>
+    </div>
+
+    <!-- Toggle de auto-refresh -->
+    <div class="auto-refresh-toggle">
+        <div class="btn-group-vertical shadow">
+            <button id="toggleAutoRefresh" class="btn btn-primary rounded-pill">
+                <i class="fa-solid fa-sync-alt"></i>
+                <span id="autoRefreshStatus">Auto: ON</span>
+            </button>
+            <button id="manualRefresh" class="btn btn-info rounded-pill mt-2">
+                <i class="fa-solid fa-redo"></i>
+                Actualizar
+            </button>
+        </div>
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-premium py-3 mb-5">
+        <div class="container">
+            <a href="/respaldos" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                <i class="fa-solid fa-arrow-left me-2"></i> Volver
+            </a>
+            <span class="navbar-brand mx-auto fw-bold" style="letter-spacing: 1px;">
+                <i class="fa-solid fa-gear me-2"></i> Configuración de Respaldos
+                <span class="refreshing-spinner" id="headerSpinner">
+                    <i class="fa-solid fa-sync-alt fa-spin ms-2 text-light"></i>
+                </span>
+            </span>
+            <a href="/respaldos/archivos" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                <i class="fa-solid fa-folder-open me-2"></i> Ver Archivos
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mb-5">
+        <!-- Notificación de Archivos Pendientes -->
+        <div id="filesAlert" class="alert alert-info border-0 shadow-sm mb-4" style="border-radius: 15px;">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h6 class="alert-heading mb-1">
+                        <i class="fa-solid fa-download fa-bounce me-2"></i>
+                        <span id="filesCount">¡Tienes {{ stats_storage.total_archivos }} archivo(s) listo(s) para descargar!</span>
+                    </h6>
+                    <small>
+                        Los respaldos automáticos han sido generados. Descárgalos para guardarlos en tu computadora.
+                    </small>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="/respaldos/centro-descargas" class="btn btn-primary rounded-pill px-4">
+                        <i class="fa-solid fa-download me-2"></i>
+                        Ir a Descargas
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estado Actual -->
+        <div class="text-center mb-5">
+            <div class="d-inline-block p-4 rounded-circle mb-3"
+                style="background: linear-gradient(135deg, var(--gold-primary), #FFD700); box-shadow: 0 8px 25px rgba(218, 165, 32, 0.4);">
+                <i class="fa-solid fa-robot fa-3x text-white"></i>
+            </div>
+            <h2 class="fw-bold mb-3" style="color: var(--coffee-dark);">Respaldos Automáticos</h2>
+            <div class="mb-3">
+                <span id="statusBadge" class="status-badge {% if config.activo %}status-active{% else %}status-inactive{% endif %}">
+                    <i class="fa-solid {% if config.activo %}fa-circle-check{% else %}fa-circle-pause{% endif %} me-2"></i>
+                    <span id="statusText">{% if config.activo %}Sistema Activo{% else %}Sistema Inactivo{% endif %}</span>
+                </span>
+            </div>
+            <p id="statusDescription" class="text-muted">
+                {% if config.activo %}
+                    Los respaldos se ejecutan automáticamente según tu configuración
+                {% else %}
+                    Activa los respaldos para proteger tus datos automáticamente
+                {% endif %}
+            </p>
+            <div id="lastUpdatedTime" class="last-updated">
+                <i class="fa-solid fa-clock me-1"></i>
+                Última actualización: <span id="currentTime">{{ now }}</span>
+            </div>
+        </div>
+
+        <!-- Estadísticas Rápidas -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card" id="statTotalRespaldos">
+                    <small class="text-muted d-block mb-2">
+                        <i class="fa-solid fa-database me-1"></i>
+                        Total Respaldos
+                    </small>
+                    <div class="stat-number">{{ estadisticas.total_respaldos }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card" id="statExitosos">
+                    <small class="text-muted d-block mb-2">
+                        <i class="fa-solid fa-check-circle me-1"></i>
+                        Exitosos
+                    </small>
+                    <div class="stat-number text-success">{{ estadisticas.exitosos }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card" id="statArchivos">
+                    <small class="text-muted d-block mb-2">
+                        <i class="fa-solid fa-folder me-1"></i>
+                        Archivos Guardados
+                    </small>
+                    <div class="stat-number text-primary">{{ stats_storage.total_archivos }}</div>
+                    <a href="/respaldos/archivos" class="small text-decoration-none">
+                        Ver archivos <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card" id="statEspacio">
+                    <small class="text-muted d-block mb-2">
+                        <i class="fa-solid fa-hard-drive me-1"></i>
+                        Espacio Usado
+                    </small>
+                    <div class="stat-number" style="font-size: 1.8rem;">{{ stats_storage.tamaño_total_mb }} MB</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Formulario de Configuración -->
+            <div class="col-lg-8">
+                <div class="config-card">
+                    <div class="config-header">
+                        <i class="fa-solid fa-sliders me-2"></i> Configuración del Sistema
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST" action="/respaldos/configuracion/guardar" id="configForm">
+                            <!-- Activar/Desactivar -->
+                            <div class="row mb-4 align-items-center p-3 rounded" style="background: #f8f9fa;">
+                                <div class="col-md-8">
+                                    <h5 class="fw-bold mb-2">
+                                        <i class="fa-solid fa-power-off me-2 text-success"></i>
+                                        Activar Respaldos Automáticos
+                                    </h5>
+                                    <p class="text-muted small mb-0">
+                                        Los respaldos se ejecutarán automáticamente según el horario configurado.
+                                    </p>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <label class="switch">
+                                        <input type="checkbox" name="activo" id="activoSwitch" 
+                                               {% if config.activo %}checked{% endif %}>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <!-- Hora de Ejecución -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">
+                                    <i class="fa-solid fa-clock me-2 text-primary"></i>Hora de Ejecución
+                                </label>
+                                <input type="time" class="form-control form-control-lg" name="hora" 
+                                       id="horaInput" value="{{ config.hora }}" required 
+                                       style="max-width: 300px;">
+                                <small class="text-muted">
+                                    <i class="fa-solid fa-info-circle me-1"></i>
+                                    Formato 24 horas (ej: 14:30 para 2:30 PM). Se recomienda horarios de baja actividad.
+                                </small>
+                            </div>
+
+                            <!-- Frecuencia -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">
+                                    <i class="fa-solid fa-calendar-days me-2 text-primary"></i>Frecuencia
+                                </label>
+                                <select class="form-select form-select-lg" name="frecuencia" id="frecuencia" required>
+                                    <option value="diario" {% if config.frecuencia=='diario' %}selected{% endif %}>
+                                        📅 Diario - Todos los días
+                                    </option>
+                                    <option value="semanal" {% if config.frecuencia=='semanal' %}selected{% endif %}>
+                                        📆 Semanal - Una vez por semana
+                                    </option>
+                                    <option value="mensual" {% if config.frecuencia=='mensual' %}selected{% endif %}>
+                                        📊 Mensual - Una vez al mes
+                                    </option>
+                                </select>
+                            </div>
+
+                            <!-- Día de la Semana (solo para semanal) -->
+                            <div class="mb-4" id="div_dia_semana" style="display: none;">
+                                <label class="form-label fw-bold">
+                                    <i class="fa-solid fa-calendar-week me-2"></i>Día de la Semana
+                                </label>
+                                <select class="form-select form-select-lg" name="dia_semana" id="diaSemana">
+                                    <option value="monday" {% if config.dia_semana=='monday' %}selected{% endif %}>Lunes</option>
+                                    <option value="tuesday" {% if config.dia_semana=='tuesday' %}selected{% endif %}>Martes</option>
+                                    <option value="wednesday" {% if config.dia_semana=='wednesday' %}selected{% endif %}>Miércoles</option>
+                                    <option value="thursday" {% if config.dia_semana=='thursday' %}selected{% endif %}>Jueves</option>
+                                    <option value="friday" {% if config.dia_semana=='friday' %}selected{% endif %}>Viernes</option>
+                                    <option value="saturday" {% if config.dia_semana=='saturday' %}selected{% endif %}>Sábado</option>
+                                    <option value="sunday" {% if config.dia_semana=='sunday' %}selected{% endif %}>Domingo</option>
+                                </select>
+                            </div>
+
+                            <!-- Día del Mes (solo para mensual) -->
+                            <div class="mb-4" id="div_dia_mes" style="display: none;">
+                                <label class="form-label fw-bold">
+                                    <i class="fa-solid fa-calendar-day me-2"></i>Día del Mes
+                                </label>
+                                <input type="number" class="form-control form-control-lg" name="dia_mes" 
+                                       id="diaMes" min="1" max="28" value="{{ config.dia_mes }}" 
+                                       style="max-width: 200px;">
+                                <small class="text-muted">Número del día (1-28) para evitar problemas con meses cortos</small>
+                            </div>
+
+                            <!-- Formato de Respaldo -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">
+                                    <i class="fa-solid fa-file-export me-2 text-primary"></i>Formato de Exportación
+                                </label>
+                                <select class="form-select form-select-lg" name="formato" id="formatoSelect" required>
+                                    <option value="todos" {% if config.formato=='todos' %}selected{% endif %}>
+                                        📦 Todos los formatos (Excel + PDF + SQL)
+                                    </option>
+                                    <option value="excel" {% if config.formato=='excel' %}selected{% endif %}>
+                                        📊 Solo Excel (.xlsx)
+                                    </option>
+                                    <option value="pdf" {% if config.formato=='pdf' %}selected{% endif %}>
+                                        📄 Solo PDF (.pdf)
+                                    </option>
+                                    <option value="sql" {% if config.formato=='sql' %}selected{% endif %}>
+                                        💾 Solo SQL (.sql)
+                                    </option>
+                                </select>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <!-- Limpieza Automática -->
+                            <div class="row mb-4 align-items-center p-3 rounded" style="background: #fff3cd;">
+                                <div class="col-md-8">
+                                    <h5 class="fw-bold mb-2">
+                                        <i class="fa-solid fa-broom me-2 text-warning"></i>
+                                        Limpieza del Historial
+                                    </h5>
+                                    <p class="text-muted small mb-0">
+                                        Eliminar entradas antiguas del historial automáticamente
+                                    </p>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <label class="switch">
+                                        <input type="checkbox" name="limpiar_antiguos" id="limpiarSwitch" 
+                                               {% if config.limpiar_antiguos %}checked{% endif %}>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">Días a Retener en Historial</label>
+                                <input type="number" class="form-control form-control-lg" name="dias_retener" 
+                                       id="diasRetener" min="7" max="365" value="{{ config.dias_retener }}" 
+                                       style="max-width: 200px;">
+                                <small class="text-muted">
+                                    Las entradas del historial más antiguas que este número de días serán eliminadas
+                                </small>
+                            </div>
+
+                            <!-- Botones -->
+                            <div class="d-grid gap-2 mt-5">
+                                <button type="submit" class="btn btn-lg rounded-pill shadow-lg" 
+                                        style="background: linear-gradient(135deg, var(--gold-primary), #FFD700); 
+                                               border: none; color: white; font-weight: bold; padding: 15px;">
+                                    <i class="fa-solid fa-save me-2"></i>Guardar Configuración
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- ========== CONFIGURACIÓN DE ENVÍO POR CORREO ========== -->
+                        <div class="email-config-box">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="fw-bold mb-0">
+                                    <i class="fa-solid fa-envelope me-2 text-primary"></i>
+                                    Envío por Correo Electrónico
+                                    <!-- <span class="badge bg-primary badge-new ms-2">NUEVO</span> -->
+                                </h5>
+                                <span class="email-status" id="emailStatusBadge">
+                                    <i class="fa-solid fa-circle me-1"></i>
+                                    <span id="emailStatusText">Desactivado</span>
+                                </span>
+                            </div>
+                            
+                            <p class="text-muted small mb-3">
+                                <i class="fa-solid fa-info-circle me-1"></i>
+                                Recibe los respaldos automáticamente en tu correo electrónico. Solo necesitas configurar los correos de destino.
+                            </p>
+
+                            <form id="emailConfigForm">
+                                <!-- Activar Envío por Correo -->
+                                <div class="row mb-3 align-items-center p-2 rounded" style="background: white;">
+                                    <div class="col-md-8">
+                                        <label class="fw-bold mb-0">
+                                            <i class="fa-solid fa-paper-plane me-2 text-success"></i>
+                                            Activar envío automático por correo
+                                        </label>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <label class="switch">
+                                            <input type="checkbox" name="email_activo" id="emailActivoSwitch">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Correos de Destino -->
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">
+                                        <i class="fa-solid fa-at me-2"></i>
+                                        Correos de Destino
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="email" class="form-control" id="nuevoEmail" 
+                                               placeholder="ejemplo@correo.com">
+                                        <button type="button" class="btn btn-primary" id="btnAgregarEmail">
+                                            <i class="fa-solid fa-plus me-1"></i> Agregar
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">
+                                        <i class="fa-solid fa-lightbulb me-1"></i>
+                                        Puedes agregar múltiples correos para recibir los respaldos
+                                    </small>
+                                </div>
+
+                                <!-- Lista de Correos -->
+                                <div id="emailsList" class="mb-3">
+                                    <!-- Los correos se agregarán dinámicamente aquí -->
+                                </div>
+
+                                <!-- Incluir Adjuntos -->
+                                <div class="row mb-3 align-items-center p-2 rounded" style="background: white;">
+                                    <div class="col-md-8">
+                                        <label class="fw-bold mb-0">
+                                            <i class="fa-solid fa-paperclip me-2"></i>
+                                            Incluir archivos adjuntos
+                                        </label>
+                                        <small class="d-block text-muted">
+                                            Los archivos de respaldo se adjuntarán al correo
+                                        </small>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <label class="switch">
+                                            <input type="checkbox" name="incluir_adjuntos" id="incluirAdjuntosSwitch" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Botones -->
+                                <div class="row g-2 mt-3">
+                                    <div class="col-md-6">
+                                        <button type="button" class="btn btn-test-email w-100 rounded-pill shadow" id="btnPruebaEmail">
+                                            <i class="fa-solid fa-vial me-2"></i>
+                                            Enviar Correo de Prueba
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <button type="submit" class="btn btn-success w-100 rounded-pill shadow fw-bold">
+                                            <i class="fa-solid fa-save me-2"></i>
+                                            Guardar Configuración
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-info mt-3 mb-0" role="alert">
+                                    <i class="fa-solid fa-shield-halved me-2"></i>
+                                    <strong>Seguridad:</strong> El servidor de correo está preconfigurado de forma segura. 
+                                    Solo necesitas especificar a qué correos enviar los respaldos.
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Ejecutar Respaldo Manual -->
+                        <div class="ejecutar-manual-box mt-4">
+                            <h6 class="fw-bold mb-3">
+                                <i class="fa-solid fa-bolt me-2 text-success"></i>
+                                Ejecutar Respaldo Manual Ahora
+                            </h6>
+                            <p class="text-muted small mb-3">
+                                Ejecuta un respaldo completo inmediatamente y guarda los archivos en el servidor.
+                                Si tienes el envío por correo activado, también lo recibirás por email.
+                            </p>
+                            <form method="POST" action="/respaldos/ejecutar-ahora" class="row g-3" id="manualBackupForm">
+                                <div class="col-md-8">
+                                    <select class="form-select" name="formato" id="manualFormato" required>
+                                        <option value="excel">📊 Solo Excel (.xlsx)</option>
+                                        <option value="pdf">📄 Solo PDF (.pdf)</option>
+                                        <option value="sql">💾 Solo SQL (.sql)</option>
+                                        <option value="todos" selected>📦 Todos los formatos (Excel + PDF + SQL)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="submit" class="btn btn-success w-100 fw-bold shadow">
+                                        <i class="fa-solid fa-play me-2"></i>Ejecutar Ahora
+                                    </button>
+                                </div>
+                            </form>
+                            <div class="mt-3 p-2 bg-white rounded">
+                                <small class="text-muted">
+                                    <i class="fa-solid fa-info-circle me-1"></i>
+                                    Los archivos se guardarán en el servidor. Puedes verlos en 
+                                    <a href="/respaldos/archivos" class="text-decoration-none fw-bold">
+                                        <i class="fa-solid fa-folder-open"></i> Ver Archivos
+                                    </a>
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Prueba de Respaldo Automático -->
+                        <div class="mt-4 p-3 border rounded" style="background: #fff3cd;">
+                            <h6 class="fw-bold mb-2">
+                                <i class="fa-solid fa-flask me-2 text-warning"></i>
+                                Prueba de Respaldo Automático
+                            </h6>
+                            <p class="text-muted small mb-2">
+                                Simula la ejecución del respaldo automático según tu configuración actual.
+                                <strong>Si tienes el envío por correo activado, también recibirás el respaldo por email.</strong>
+                            </p>
+                            <button type="button" class="btn btn-warning btn-sm shadow" id="btnPruebaRespaldo">
+                                <i class="fa-solid fa-rotate me-1"></i>
+                                Simular Ejecución Automática + Envío por Correo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel Derecho -->
+            <div class="col-lg-4">
+                <!-- Próximos Respaldos -->
+                <div class="config-card">
+                    <div class="config-header">
+                        <i class="fa-solid fa-calendar-check me-2"></i> Próximas Ejecuciones
+                        <span class="refreshing-spinner" id="proximosSpinner">
+                            <i class="fa-solid fa-sync-alt fa-spin ms-2"></i>
+                        </span>
+                    </div>
+                    <div class="card-body p-4" id="proximosContainer">
+                        {% if proximos|length > 0 %}
+                        <div class="timeline">
+                            {% for proximo in proximos %}
+                            <div class="timeline-item">
+                                <div class="d-flex align-items-start mb-2">
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold mb-1" style="color: var(--coffee-dark);">
+                                            {{ proximo.tarea }}
+                                        </div>
+                                        <div class="text-muted small">
+                                            <i class="fa-solid fa-clock me-1"></i>
+                                            {{ proximo.proxima_ejecucion }}
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-success">
+                                        <i class="fa-solid fa-check"></i>
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fa-solid fa-calendar-xmark fa-3x mb-3 opacity-50"></i>
+                            <p class="mb-1 fw-bold">Sin Programación</p>
+                            <p class="small mb-0">
+                                Activa los respaldos automáticos arriba para comenzar
+                            </p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Historial Reciente -->
+                <div class="config-card">
+                    <div class="config-header">
+                        <i class="fa-solid fa-clock-rotate-left me-2"></i> Historial Reciente
+                        <span class="refreshing-spinner" id="historialSpinner">
+                            <i class="fa-solid fa-sync-alt fa-spin ms-2"></i>
+                        </span>
+                    </div>
+                    <div class="card-body p-4" style="max-height: 400px; overflow-y: auto;" id="historialContainer">
+                        {% if historial|length > 0 %}
+                        <div class="list-group list-group-flush">
+                            {% for item in historial %}
+                            <div class="list-group-item px-0 py-3 border-0 border-bottom">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <small class="text-muted">
+                                        <i class="fa-solid fa-calendar me-1"></i>
+                                        {{ item.fecha }}
+                                    </small>
+                                    {% if item.estado == 'exitoso' or item.estado == 'manual' %}
+                                    <i class="fa-solid fa-circle-check text-success"></i>
+                                    {% else %}
+                                    <i class="fa-solid fa-circle-xmark text-danger"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="d-flex gap-2 align-items-center flex-wrap">
+                                    <span class="badge bg-primary">{{ item.formato }}</span>
+                                    <small class="text-muted">{{ item.cantidad_registros }} registros</small>
+                                    {% if item.archivos %}
+                                    <small class="text-success">
+                                        <i class="fa-solid fa-file me-1"></i>
+                                        {{ item.archivos|length }} archivo(s)
+                                    </small>
+                                    {% endif %}
+                                </div>
+                                {% if item.archivos and item.archivos|length > 0 %}
+                                <div class="mt-2">
+                                    {% for archivo in item.archivos %}
+                                    <small class="badge bg-light text-dark me-1">
+                                        <i class="fa-solid fa-paperclip me-1"></i>
+                                        {{ archivo }}
+                                    </small>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fa-solid fa-box-open fa-3x mb-3 opacity-50"></i>
+                            <p class="mb-0 small">Sin historial aún</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Archivos Recientes -->
+                <div class="config-card">
+                    <div class="config-header d-flex justify-content-between align-items-center">
+                        <span>
+                            <i class="fa-solid fa-folder-open me-2"></i> Archivos Guardados
+                        </span>
+                        <a href="/respaldos/archivos" class="btn btn-sm btn-light">
+                            Ver todos
+                        </a>
+                    </div>
+                    <div class="card-body p-4" id="archivosContainer">
+                        {% if archivos|length > 0 %}
+                        <div class="list-group list-group-flush">
+                            {% for archivo in archivos[:5] %}
+                            <div class="list-group-item px-0 py-2 border-0 border-bottom">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="flex-grow-1">
+                                        <div class="small fw-bold text-truncate" style="max-width: 200px;">
+                                            <i class="fa-solid fa-file me-1"></i>
+                                            {{ archivo.nombre }}
+                                        </div>
+                                        <div class="d-flex gap-2 align-items-center mt-1">
+                                            <span class="badge bg-primary small">{{ archivo.extension }}</span>
+                                            <small class="text-muted">{{ archivo.tamaño_mb }} MB</small>
+                                        </div>
+                                    </div>
+                                    <a href="/respaldos/descargar/{{ archivo.nombre }}" 
+                                       class="btn btn-sm btn-success rounded-pill">
+                                        <i class="fa-solid fa-download"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="/respaldos/archivos" class="btn btn-sm btn-outline-primary rounded-pill">
+                                Ver todos los archivos ({{ stats_storage.total_archivos }})
+                            </a>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-3">
+                            <i class="fa-solid fa-folder-open fa-2x mb-2 opacity-50"></i>
+                            <p class="small mb-0">Sin archivos guardados</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Ayuda -->
+                <div class="config-card">
+                    <div class="config-header">
+                        <i class="fa-solid fa-question-circle me-2"></i> Ayuda
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="small">
+                            <p class="mb-2">
+                                <strong><i class="fa-solid fa-info-circle me-1 text-info"></i> ¿Cómo funciona?</strong>
+                            </p>
+                            <ul class="mb-3 ps-3">
+                                <li class="mb-2">
+                                    <strong>Automáticos:</strong> Se generan según horario y se guardan en el servidor
+                                </li>
+                                <li class="mb-2">
+                                    <strong>Manuales:</strong> Usa "Ejecutar Ahora" para generar en cualquier momento
+                                </li>
+                                <li class="mb-2">
+                                    <strong>Por Correo:</strong> Activa el envío automático para recibirlos por email
+                                </li>
+                                <li class="mb-2">
+                                    <strong>Archivos:</strong> Todos se guardan en "backups_automaticos/"
+                                </li>
+                                <li>
+                                    <strong>Descarga:</strong> Ve a "Ver Archivos" para descargarlos
+                                </li>
+                            </ul>
+                            <div class="alert alert-warning small mb-0" role="alert">
+                                <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                                <strong>Importante:</strong> Los archivos ocupan espacio en el servidor. 
+                                Activa la limpieza automática para eliminar archivos antiguos.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    // Variables globales
+    let autoRefreshInterval = null;
+    let autoRefreshEnabled = true;
+    const REFRESH_INTERVAL = 30000;
+    let emailsDestino = [];
+
+    // Cargar configuración de email
+    async function cargarConfigEmail() {
+        try {
+            const response = await fetch('/respaldos/api/config-email');
+            if (response.ok) {
+                const config = await response.json();
+                document.getElementById('emailActivoSwitch').checked = config.activo || false;
+                document.getElementById('incluirAdjuntosSwitch').checked = config.incluir_adjuntos !== false;
+                emailsDestino = config.emails_destino || [];
+                renderEmailsList();
+                updateEmailStatus(config.activo);
+            }
+        } catch (error) {
+            console.error('Error cargando configuración de email:', error);
+        }
+    }
+
+    // Renderizar lista de emails
+    function renderEmailsList() {
+        const container = document.getElementById('emailsList');
+        if (emailsDestino.length === 0) {
+            container.innerHTML = `<div class="alert alert-light border"><i class="fa-solid fa-inbox me-2"></i>No hay correos configurados.</div>`;
+            return;
+        }
+        let html = '<div class="d-flex flex-wrap">';
+        emailsDestino.forEach((email, index) => {
+            html += `<div class="email-chip"><i class="fa-solid fa-envelope me-2"></i>${email}<span class="remove-email" onclick="removerEmail(${index})"><i class="fa-solid fa-times"></i></span></div>`;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    // Remover email
+    function removerEmail(index) {
+        Swal.fire({
+            title: '¿Eliminar correo?',
+            text: `¿Deseas eliminar ${emailsDestino[index]} de la lista?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                emailsDestino.splice(index, 1);
+                renderEmailsList();
+                Swal.fire({ icon: 'success', title: 'Eliminado', timer: 2000, showConfirmButton: false });
+            }
+        });
+    }
+
+    // Actualizar estado visual del email
+    function updateEmailStatus(activo) {
+        const badge = document.getElementById('emailStatusBadge');
+        const text = document.getElementById('emailStatusText');
+        if (activo) {
+            badge.classList.remove('inactive');
+            badge.classList.add('active');
+            text.textContent = 'Activado';
+        } else {
+            badge.classList.remove('active');
+            badge.classList.add('inactive');
+            text.textContent = 'Desactivado';
+        }
+    }
+
+    function updateFrequencyFields() {
+        const frecuencia = document.getElementById('frecuencia').value;
+        document.getElementById('div_dia_semana').style.display = frecuencia === 'semanal' ? 'block' : 'none';
+        document.getElementById('div_dia_mes').style.display = frecuencia === 'mensual' ? 'block' : 'none';
+    }
+
+    function updateCurrentTime() {
+        document.getElementById('currentTime').textContent = new Date().toLocaleTimeString('es-ES');
+    }
+
+    function showRefreshNotification(message) {
+        const badge = document.getElementById('autoRefreshBadge');
+        document.getElementById('refreshMessage').textContent = message;
+        badge.style.display = 'block';
+        setTimeout(() => badge.style.display = 'none', 3000);
+    }
+
+    function showSpinner(spinnerId, show) {
+        const spinner = document.getElementById(spinnerId);
+        if (spinner) spinner.classList.toggle('active', show);
+    }
+
+    async function refreshData() {
+        if (!autoRefreshEnabled) return;
+        try {
+            showSpinner('headerSpinner', true);
+            await Promise.all([updateStatistics(), updateProximosRespaldos(), updateHistorial(), updateArchivosRecientes()]);
+            updateCurrentTime();
+        } catch (error) {
+            console.error('Error actualizando datos:', error);
+        } finally {
+            showSpinner('headerSpinner', false);
+        }
+    }
+
+    async function updateStatistics() {
+        try {
+            const response = await fetch('/respaldos/api/estadisticas');
+            if (response.ok) {
+                const data = await response.json();
+                document.querySelector('#statTotalRespaldos .stat-number').textContent = data.total_respaldos;
+                document.querySelector('#statExitosos .stat-number').textContent = data.exitosos;
+                document.querySelector('#statArchivos .stat-number').textContent = data.total_archivos;
+                document.querySelector('#statEspacio .stat-number').textContent = data.tamaño_total_mb + ' MB';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    async function updateProximosRespaldos() {
+        try {
+            const response = await fetch('/respaldos/api/proximos-respaldos');
+            if (response.ok) {
+                const data = await response.json();
+                const container = document.getElementById('proximosContainer');
+                if (data.length > 0) {
+                    let html = '<div class="timeline">';
+                    data.forEach(p => {
+                        html += `<div class="timeline-item"><div class="d-flex align-items-start mb-2"><div class="flex-grow-1"><div class="fw-bold mb-1">${p.tarea}</div><div class="text-muted small"><i class="fa-solid fa-clock me-1"></i>${p.proxima_ejecucion}</div></div><span class="badge bg-success"><i class="fa-solid fa-check"></i></span></div></div>`;
+                    });
+                    html += '</div>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div class="text-center text-muted py-4"><i class="fa-solid fa-calendar-xmark fa-3x mb-3 opacity-50"></i><p>Sin programación</p></div>';
+                }
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    async function updateHistorial() {
+        try {
+            const response = await fetch('/respaldos/api/historial-reciente');
+            if (response.ok) {
+                const data = await response.json();
+                // Implementa el renderizado del historial aquí
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    async function updateArchivosRecientes() {
+        try {
+            const response = await fetch('/respaldos/api/archivos-recientes');
+            if (response.ok) {
+                const data = await response.json();
+                // Implementa el renderizado de archivos aquí
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    function toggleAutoRefresh() {
+        autoRefreshEnabled = !autoRefreshEnabled;
+        document.getElementById('autoRefreshStatus').textContent = autoRefreshEnabled ? 'Auto: ON' : 'Auto: OFF';
+        autoRefreshEnabled ? startAutoRefresh() : stopAutoRefresh();
+    }
+
+    function startAutoRefresh() {
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        autoRefreshInterval = setInterval(refreshData, REFRESH_INTERVAL);
+    }
+
+    function stopAutoRefresh() {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+    }
+
+    // Inicializar
+    document.addEventListener('DOMContentLoaded', function () {
+        updateFrequencyFields();
+        document.getElementById('frecuencia').addEventListener('change', updateFrequencyFields);
+        setInterval(updateCurrentTime, 1000);
+        document.getElementById('toggleAutoRefresh').addEventListener('click', toggleAutoRefresh);
+        document.getElementById('manualRefresh').addEventListener('click', refreshData);
+        
+        // Agregar email
+        document.getElementById('btnAgregarEmail').addEventListener('click', function() {
+            const input = document.getElementById('nuevoEmail');
+            const email = input.value.trim();
+            if (!email) return Swal.fire({ icon: 'warning', title: 'Email vacío' });
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Swal.fire({ icon: 'error', title: 'Email inválido' });
+            if (emailsDestino.includes(email)) return Swal.fire({ icon: 'info', title: 'Email duplicado' });
+            emailsDestino.push(email);
+            renderEmailsList();
+            input.value = '';
+        });
+
+        // Guardar config email
+        document.getElementById('emailConfigForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const activo = document.getElementById('emailActivoSwitch').checked;
+            if (activo && emailsDestino.length === 0) {
+                return Swal.fire({ icon: 'warning', title: 'Falta configuración', text: 'Agrega al menos un correo' });
+            }
+            try {
+                const response = await fetch('/respaldos/api/config-email/guardar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ activo, emails_destino: emailsDestino, incluir_adjuntos: document.getElementById('incluirAdjuntosSwitch').checked })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    updateEmailStatus(activo);
+                    Swal.fire({ icon: 'success', title: '¡Guardado!', text: data.message });
+                }
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Error al guardar' });
+            }
+        });
+
+        // Prueba de email
+        document.getElementById('btnPruebaEmail').addEventListener('click', async function() {
+            if (emailsDestino.length === 0) return Swal.fire({ icon: 'warning', text: 'Agrega correos' });
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Enviando...';
+            try {
+                const response = await fetch('/respaldos/api/email/prueba', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emails_destino: emailsDestino })
+                });
+                const data = await response.json();
+                Swal.fire({ icon: data.success ? 'success' : 'error', title: data.success ? '¡Enviado!' : 'Error', text: data.message });
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Error al enviar' });
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-vial me-2"></i>Enviar Correo de Prueba';
+            }
+        });
+
+        // Prueba de respaldo
+        document.getElementById('btnPruebaRespaldo').addEventListener('click', async function() {
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Ejecutando...';
+            try {
+                const response = await fetch('/respaldos/ejecutar-prueba', { method: 'POST' });
+                const data = await response.json();
+                Swal.fire({ icon: data.success ? 'success' : 'error', title: data.success ? '¡Completado!' : 'Error', html: data.message });
+                if (data.success) setTimeout(refreshData, 2000);
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error' });
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-rotate me-1"></i>Simular Ejecución Automática + Envío por Correo';
+            }
+        });
+
+        cargarConfigEmail();
+        startAutoRefresh();
+    });
+</script>
+</body>
+</html>

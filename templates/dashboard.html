@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard | Cafetería</title>
+
+    <!-- Bootstrap & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='clouds.css') }}">
+
+    <style>
+        body {
+            background: var(--bg-cream);
+            transition: background-color 0.4s ease, color 0.4s ease;
+        }
+
+        .card-menu:hover {
+            cursor: pointer;
+        }
+
+        .navbar,
+        .container {
+            position: relative;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ☁️ FONDO DE NUBES -->
+    <div class="clouds-container">
+        <div class="cloud cloud-1"></div>
+        <div class="cloud cloud-2"></div>
+        <div class="cloud cloud-3"></div>
+        <div class="cloud cloud-4"></div>
+        <div class="cloud cloud-5"></div>
+        <div class="cloud cloud-6"></div>
+        <div class="cloud cloud-7"></div>
+        <div class="cloud cloud-8"></div>
+    </div>
+
+    <!-- 🔝 NAVBAR -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-premium py-3">
+        <div class="container d-flex justify-content-between align-items-center">
+            <a class="navbar-brand" href="/dashboard">
+                <i class="fa-solid fa-mug-hot me-2"></i>
+                <span data-i18n="nav.brand">Nube de Cacao</span>
+            </a>
+
+            <div class="d-flex align-items-center gap-3">
+                <select id="language-selector" class="form-select form-select-sm"
+                    style="width:auto;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:white;"
+                    onchange="changeLanguage(this.value)">
+                    <option value="es">🇪🇸 Español</option>
+                    <option value="en">🇺🇸 English</option>
+                </select>
+
+                <a class="nav-link text-white" href="/perfil">
+                    <i class="fa-solid fa-id-card me-2"></i><span data-i18n="nav.profile">Perfil</span>
+                </a>
+
+                <a class="nav-link text-white" href="/perfil#settings">
+                    <i class="fa-solid fa-cog me-2"></i><span data-i18n="nav.settings">Configuración</span>
+                </a>
+
+                <a class="nav-link text-white" href="/login">
+                    <i class="fa-solid fa-sign-out-alt me-2"></i><span data-i18n="nav.logout">Cerrar Sesión</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 📊 CONTENIDO PRINCIPAL -->
+    <div class="container mt-5 position-relative">
+
+        <!-- TÍTULO -->
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold" style="color:var(--coffee-dark);" data-i18n="dashboard.title">
+                Panel Principal
+            </h2>
+            <p class="lead" style="color:var(--text-light);" data-i18n="dashboard.subtitle">
+                Bienvenido de nuevo, selecciona una opción
+            </p>
+        </div>
+
+        <!-- 🔲 TARJETAS -->
+        <div class="row g-4">
+
+            <!-- RESPALDOS -->
+            <div class="col-md-4">
+                <a href="/respaldos" class="text-decoration-none">
+                    <div class="card h-100 border-0 shadow-sm hover-card"
+                        style="border-radius:20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);">
+                        <div class="card-body text-center p-5 text-white">
+                            <i class="fa-solid fa-database fa-3x mb-3"></i>
+                            <h4 class="fw-bold">Respaldos</h4>
+                            <p class="opacity-75">
+                                Genera respaldos de tu base de datos en Excel, PDF o SQL
+                            </p>
+                            <span class="badge bg-white bg-opacity-25 px-3 py-2">
+                                <i class="fa-solid fa-shield-halved me-1"></i>
+                                Seguridad de Datos
+                            </span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- REGISTRAR VENTA -->
+            <div class="col-md-4">
+                <a href="/ventas/nueva" class="text-decoration-none text-dark">
+                    <div class="card p-4 card-menu text-center">
+                        <i class="fa-solid fa-cash-register fa-3x mb-3"
+                            style="color:var(--gold-primary);"></i>
+                        <h4 data-i18n="dashboard.register_sale">Registrar venta</h4>
+                        <p data-i18n="dashboard.register_sale_desc">Crear una venta nueva.</p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- HISTORIAL -->
+            <div class="col-md-4">
+                <a href="/ventas/historial" class="text-decoration-none text-dark">
+                    <div class="card p-4 card-menu text-center">
+                        <i class="fa-solid fa-list-check fa-3x mb-3"
+                            style="color:var(--gold-primary);"></i>
+                        <h4 data-i18n="dashboard.history">Historial</h4>
+                        <p data-i18n="dashboard.history_desc">Ver todas las ventas registradas.</p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- ANÁLISIS -->
+            <div class="col-md-4">
+                <a href="/analisis" class="text-decoration-none text-dark">
+                    <div class="card p-4 card-menu text-center">
+                        <i class="fa-solid fa-chart-pie fa-3x mb-3"
+                            style="color:var(--gold-primary);"></i>
+                        <h4 data-i18n="dashboard.analysis">Análisis</h4>
+                        <p data-i18n="dashboard.analysis_desc">Estadísticas avanzadas y tendencias.</p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- REGRESIÓN LINEAL -->
+            <div class="col-md-4">
+                <a href="/regresion" class="text-decoration-none text-dark">
+                    <div class="card p-4 card-menu text-center">
+                        <i class="fa-solid fa-chart-line fa-3x mb-3"
+                            style="color:var(--gold-primary);"></i>
+                        <h4 data-i18n="dashboard.regression">Regresión Lineal</h4>
+                        <p data-i18n="dashboard.regression_desc">Predicciones de ventas.</p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- REGRESIÓN MÚLTIPLE -->
+            <div class="col-md-4">
+                <a href="/regresion-multiple" class="text-decoration-none text-dark">
+                    <div class="card p-4 card-menu text-center">
+                        <i class="fa-solid fa-cube fa-3x mb-3"
+                            style="color:var(--gold-primary);"></i>
+                        <h4 data-i18n="dashboard.multiple_regression">Regresión Múltiple</h4>
+                        <p data-i18n="dashboard.multiple_regression_desc">
+                            Predicción usando 3 variables.
+                        </p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- REGRESIÓN POLINÓMICA -->
+            <!-- <div class="col-md-4">
+                <a href="/regresion-polinomica" class="text-decoration-none text-dark">
+                    <div class="card p-4 card-menu text-center">
+                        <i class="fa-solid fa-chart-area fa-3x mb-3"
+                            style="color:var(--gold-primary);"></i>
+                        <h4 data-i18n="dashboard.polynomial_regression">Regresión Polinómica</h4>
+                        <p data-i18n="dashboard.polynomial_regression_desc">
+                            Ajuste curvo y residuales.
+                        </p>
+                    </div>
+                </a>
+            </div> -->
+
+        </div>
+    </div>
+
+    <!-- 🌗 BOTÓN TEMA -->
+    <button id="theme-toggle" title="Cambiar tema"
+        style="position:fixed;bottom:25px;right:25px;width:50px;height:50px;border-radius:50%;
+        border:none;background:var(--gold-primary);color:#fff;font-size:22px;
+        box-shadow:0 6px 15px rgba(0,0,0,0.2);cursor:pointer;z-index:10000;">🌓</button>
+
+    <!-- JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='i18n.js') }}"></script>
+
+    <script>
+        const toggleBtn = document.getElementById('theme-toggle');
+
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem(
+                'theme',
+                document.body.classList.contains('dark-mode') ? 'dark' : 'light'
+            );
+        });
+
+        function changeLanguage(lang) {
+            i18n.setLanguage(lang);
+            i18n.translatePage();
+
+            fetch('/perfil/preferencias', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `idioma=${lang}`
+            });
+        }
+    </script>
+
+</body>
+</html>
