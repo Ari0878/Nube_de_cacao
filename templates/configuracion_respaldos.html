@@ -14,12 +14,20 @@
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
             margin-bottom: 25px;
             overflow: hidden;
+<<<<<<< HEAD
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
         .config-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+=======
+            transition: transform 0.3s ease;
+        }
+
+        .config-card:hover {
+            transform: translateY(-2px);
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
         }
 
         .config-header {
@@ -76,12 +84,20 @@
 
         .status-badge {
             display: inline-block;
+<<<<<<< HEAD
             padding: 12px 30px;
             border-radius: 50px;
             font-weight: 600;
             font-size: 1.1rem;
             animation: pulse 2s infinite;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+=======
+            padding: 10px 25px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1rem;
+            animation: pulse 2s infinite;
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
         }
 
         @keyframes pulse {
@@ -116,7 +132,10 @@
             position: absolute;
             left: -7.5px;
             top: 5px;
+<<<<<<< HEAD
             box-shadow: 0 0 0 3px rgba(218, 165, 32, 0.2);
+=======
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
         }
 
         .timeline-item:last-child {
@@ -125,6 +144,7 @@
         }
 
         .stat-card {
+<<<<<<< HEAD
             background: linear-gradient(135deg, #ffffff, #f8f9fa);
             border-left: 5px solid var(--gold-primary);
             padding: 20px;
@@ -137,6 +157,14 @@
         .stat-card:hover {
             transform: translateY(-3px);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+=======
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-left: 4px solid var(--gold-primary);
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
         }
 
         .stat-card.updating {
@@ -144,21 +172,32 @@
         }
 
         @keyframes pulseUpdate {
+<<<<<<< HEAD
             0%, 100% { background: linear-gradient(135deg, #ffffff, #f8f9fa); }
+=======
+            0%, 100% { background: linear-gradient(135deg, #f8f9fa, #e9ecef); }
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
             50% { background: linear-gradient(135deg, #e3f2fd, #bbdefb); }
         }
 
         .stat-number {
+<<<<<<< HEAD
             font-size: 2.5rem;
             font-weight: bold;
             color: var(--coffee-dark);
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+=======
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--coffee-dark);
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
         }
 
         .ejecutar-manual-box {
             background: linear-gradient(135deg, #e8f5e9, #f1f8f4);
             border: 2px dashed #28a745;
             border-radius: 15px;
+<<<<<<< HEAD
             padding: 25px;
             transition: all 0.3s ease;
         }
@@ -180,6 +219,9 @@
         .email-config-box:hover {
             border-color: #1976D2;
             box-shadow: 0 5px 15px rgba(33, 150, 243, 0.2);
+=======
+            padding: 20px;
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
         }
 
         .auto-refresh-badge {
@@ -207,6 +249,7 @@
         }
 
         .last-updated {
+<<<<<<< HEAD
             font-size: 0.85rem;
             color: #6c757d;
             text-align: center;
@@ -214,6 +257,12 @@
             padding: 8px;
             background: rgba(0, 0, 0, 0.02);
             border-radius: 8px;
+=======
+            font-size: 0.8rem;
+            color: #6c757d;
+            text-align: center;
+            margin-top: 10px;
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
         }
 
         .auto-refresh-toggle {
@@ -222,6 +271,7 @@
             right: 20px;
             z-index: 1000;
         }
+<<<<<<< HEAD
 
         .email-chip {
             display: inline-flex;
@@ -298,6 +348,8 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.7; }
         }
+=======
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
     </style>
 </head>
 <body>
@@ -334,7 +386,11 @@
             <a href="/respaldos" class="btn btn-outline-light btn-sm rounded-pill px-3">
                 <i class="fa-solid fa-arrow-left me-2"></i> Volver
             </a>
+<<<<<<< HEAD
             <span class="navbar-brand mx-auto fw-bold" style="letter-spacing: 1px;">
+=======
+            <span class="navbar-brand mx-auto fw-bold" style="letterspacing: 1px;">
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
                 <i class="fa-solid fa-gear me-2"></i> Configuración de Respaldos
                 <span class="refreshing-spinner" id="headerSpinner">
                     <i class="fa-solid fa-sync-alt fa-spin ms-2 text-light"></i>
@@ -389,7 +445,10 @@
                 {% endif %}
             </p>
             <div id="lastUpdatedTime" class="last-updated">
+<<<<<<< HEAD
                 <i class="fa-solid fa-clock me-1"></i>
+=======
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
                 Última actualización: <span id="currentTime">{{ now }}</span>
             </div>
         </div>
@@ -398,24 +457,33 @@
         <div class="row mb-4">
             <div class="col-md-3">
                 <div class="stat-card" id="statTotalRespaldos">
+<<<<<<< HEAD
                     <small class="text-muted d-block mb-2">
                         <i class="fa-solid fa-database me-1"></i>
                         Total Respaldos
                     </small>
+=======
+                    <small class="text-muted d-block mb-1">Total Respaldos</small>
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
                     <div class="stat-number">{{ estadisticas.total_respaldos }}</div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stat-card" id="statExitosos">
+<<<<<<< HEAD
                     <small class="text-muted d-block mb-2">
                         <i class="fa-solid fa-check-circle me-1"></i>
                         Exitosos
                     </small>
+=======
+                    <small class="text-muted d-block mb-1">Exitosos</small>
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
                     <div class="stat-number text-success">{{ estadisticas.exitosos }}</div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stat-card" id="statArchivos">
+<<<<<<< HEAD
                     <small class="text-muted d-block mb-2">
                         <i class="fa-solid fa-folder me-1"></i>
                         Archivos Guardados
@@ -424,15 +492,25 @@
                     <a href="/respaldos/archivos" class="small text-decoration-none">
                         Ver archivos <i class="fa-solid fa-arrow-right ms-1"></i>
                     </a>
+=======
+                    <small class="text-muted d-block mb-1">Archivos Guardados</small>
+                    <div class="stat-number text-primary">{{ stats_storage.total_archivos }}</div>
+                    <a href="/respaldos/archivos" class="small text-decoration-none">Ver archivos →</a>
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stat-card" id="statEspacio">
+<<<<<<< HEAD
                     <small class="text-muted d-block mb-2">
                         <i class="fa-solid fa-hard-drive me-1"></i>
                         Espacio Usado
                     </small>
                     <div class="stat-number" style="font-size: 1.8rem;">{{ stats_storage.tamaño_total_mb }} MB</div>
+=======
+                    <small class="text-muted d-block mb-1">Espacio Usado</small>
+                    <div class="stat-number" style="font-size: 1.5rem;">{{ stats_storage.tamaño_total_mb }} MB</div>
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
                 </div>
             </div>
         </div>
@@ -455,6 +533,10 @@
                                     </h5>
                                     <p class="text-muted small mb-0">
                                         Los respaldos se ejecutarán automáticamente según el horario configurado.
+<<<<<<< HEAD
+=======
+                                        Los archivos NO se almacenan en el servidor, solo se registra el historial.
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
                                     </p>
                                 </div>
                                 <div class="col-md-4 text-end">
@@ -546,6 +628,13 @@
                                         💾 Solo SQL (.sql)
                                     </option>
                                 </select>
+<<<<<<< HEAD
+=======
+                                <small class="text-muted">
+                                    <i class="fa-solid fa-lightbulb me-1"></i>
+                                    Los archivos se generarán solo cuando ejecutes un respaldo manual
+                                </small>
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
                             </div>
 
                             <hr class="my-4">
@@ -590,6 +679,7 @@
                             </div>
                         </form>
 
+<<<<<<< HEAD
                         <!-- ========== CONFIGURACIÓN DE ENVÍO POR CORREO ========== -->
                         <div class="email-config-box">
                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -695,13 +785,21 @@
 
                         <!-- Ejecutar Respaldo Manual -->
                         <div class="ejecutar-manual-box mt-4">
+=======
+                        <!-- Ejecutar Respaldo Manual -->
+                        <div class="ejecutar-manual-box mt-5">
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
                             <h6 class="fw-bold mb-3">
                                 <i class="fa-solid fa-bolt me-2 text-success"></i>
                                 Ejecutar Respaldo Manual Ahora
                             </h6>
                             <p class="text-muted small mb-3">
                                 Ejecuta un respaldo completo inmediatamente y guarda los archivos en el servidor.
+<<<<<<< HEAD
                                 Si tienes el envío por correo activado, también lo recibirás por email.
+=======
+                                Los archivos se guardarán en la carpeta "backups_automaticos" y podrás descargarlos cuando quieras.
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
                             </p>
                             <form method="POST" action="/respaldos/ejecutar-ahora" class="row g-3" id="manualBackupForm">
                                 <div class="col-md-8">
@@ -729,7 +827,11 @@
                             </div>
                         </div>
 
+<<<<<<< HEAD
                         <!-- Prueba de Respaldo Automático -->
+=======
+                        <!-- Forzar Ejecución Automática (para pruebas) -->
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
                         <div class="mt-4 p-3 border rounded" style="background: #fff3cd;">
                             <h6 class="fw-bold mb-2">
                                 <i class="fa-solid fa-flask me-2 text-warning"></i>
@@ -737,12 +839,23 @@
                             </h6>
                             <p class="text-muted small mb-2">
                                 Simula la ejecución del respaldo automático según tu configuración actual.
+<<<<<<< HEAD
                                 <strong>Si tienes el envío por correo activado, también recibirás el respaldo por email.</strong>
                             </p>
                             <button type="button" class="btn btn-warning btn-sm shadow" id="btnPruebaRespaldo">
                                 <i class="fa-solid fa-rotate me-1"></i>
                                 Simular Ejecución Automática + Envío por Correo
                             </button>
+=======
+                                Útil para probar que todo funciona correctamente.
+                            </p>
+                            <form method="POST" action="/respaldos/forzar-ejecucion" id="testBackupForm">
+                                <button type="submit" class="btn btn-warning btn-sm">
+                                    <i class="fa-solid fa-rotate me-1"></i>
+                                    Simular Ejecución Automática
+                                </button>
+                            </form>
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
                         </div>
                     </div>
                 </div>
@@ -914,9 +1027,12 @@
                                     <strong>Manuales:</strong> Usa "Ejecutar Ahora" para generar en cualquier momento
                                 </li>
                                 <li class="mb-2">
+<<<<<<< HEAD
                                     <strong>Por Correo:</strong> Activa el envío automático para recibirlos por email
                                 </li>
                                 <li class="mb-2">
+=======
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
                                     <strong>Archivos:</strong> Todos se guardan en "backups_automaticos/"
                                 </li>
                                 <li>
@@ -936,6 +1052,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<<<<<<< HEAD
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     // Variables globales
@@ -1212,5 +1329,419 @@
         startAutoRefresh();
     });
 </script>
+=======
+    <script>
+        // Variables globales
+        let autoRefreshInterval = null;
+        let autoRefreshEnabled = true;
+        const REFRESH_INTERVAL = 30000; // 30 segundos
+
+        // Mostrar/ocultar campos según frecuencia
+        function updateFrequencyFields() {
+            const frecuencia = document.getElementById('frecuencia').value;
+            const divSemana = document.getElementById('div_dia_semana');
+            const divMes = document.getElementById('div_dia_mes');
+
+            divSemana.style.display = frecuencia === 'semanal' ? 'block' : 'none';
+            divMes.style.display = frecuencia === 'mensual' ? 'block' : 'none';
+        }
+
+        // Actualizar tiempo actual
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('currentTime').textContent = timeString;
+        }
+
+        // Mostrar notificación de actualización
+        function showRefreshNotification(message) {
+            const badge = document.getElementById('autoRefreshBadge');
+            const messageSpan = document.getElementById('refreshMessage');
+            
+            messageSpan.textContent = message;
+            badge.style.display = 'block';
+            
+            // Ocultar después de 3 segundos
+            setTimeout(() => {
+                badge.style.display = 'none';
+            }, 3000);
+        }
+
+        // Animación de actualización en elementos
+        function showRefreshingAnimation(elementId, isRefreshing) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                if (isRefreshing) {
+                    element.classList.add('updating');
+                } else {
+                    setTimeout(() => {
+                        element.classList.remove('updating');
+                    }, 500);
+                }
+            }
+        }
+
+        // Mostrar spinner
+        function showSpinner(spinnerId, show) {
+            const spinner = document.getElementById(spinnerId);
+            if (spinner) {
+                if (show) {
+                    spinner.classList.add('active');
+                } else {
+                    spinner.classList.remove('active');
+                }
+            }
+        }
+
+        // Actualizar datos vía AJAX
+        async function refreshData() {
+            if (!autoRefreshEnabled) return;
+
+            try {
+                // Mostrar que se está actualizando
+                showRefreshNotification('Actualizando datos...');
+                showSpinner('headerSpinner', true);
+                
+                // Actualizar estadísticas
+                await updateStatistics();
+                
+                // Actualizar próximos respaldos
+                await updateProximosRespaldos();
+                
+                // Actualizar historial
+                await updateHistorial();
+                
+                // Actualizar archivos recientes
+                await updateArchivosRecientes();
+                
+                // Actualizar tiempo
+                updateCurrentTime();
+                
+                // Quitar spinner
+                showSpinner('headerSpinner', false);
+                
+            } catch (error) {
+                console.error('Error actualizando datos:', error);
+                showSpinner('headerSpinner', false);
+            }
+        }
+
+        // Actualizar estadísticas
+        async function updateStatistics() {
+            showSpinner('proximosSpinner', true);
+            
+            try {
+                const response = await fetch('/respaldos/api/estadisticas');
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Actualizar números
+                    document.querySelector('#statTotalRespaldos .stat-number').textContent = data.total_respaldos;
+                    document.querySelector('#statExitosos .stat-number').textContent = data.exitosos;
+                    document.querySelector('#statArchivos .stat-number').textContent = data.total_archivos;
+                    document.querySelector('#statEspacio .stat-number').textContent = data.tamaño_total_mb + ' MB';
+                    
+                    // Animar actualización
+                    ['statTotalRespaldos', 'statExitosos', 'statArchivos', 'statEspacio'].forEach(id => {
+                        showRefreshingAnimation(id, true);
+                    });
+                    
+                    // Actualizar notificación de archivos
+                    const filesCount = data.total_archivos;
+                    const filesAlert = document.getElementById('filesAlert');
+                    const filesCountSpan = document.getElementById('filesCount');
+                    
+                    if (filesCount > 0) {
+                        filesCountSpan.textContent = `¡Tienes ${filesCount} archivo(s) listo(s) para descargar!`;
+                        filesAlert.style.display = 'block';
+                    } else {
+                        filesAlert.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error('Error actualizando estadísticas:', error);
+            } finally {
+                showSpinner('proximosSpinner', false);
+            }
+        }
+
+        // Actualizar próximos respaldos
+        async function updateProximosRespaldos() {
+            showSpinner('proximosSpinner', true);
+            
+            try {
+                const response = await fetch('/respaldos/api/proximos-respaldos');
+                if (response.ok) {
+                    const data = await response.json();
+                    const container = document.getElementById('proximosContainer');
+                    
+                    if (data.length > 0) {
+                        let html = '<div class="timeline">';
+                        data.forEach(proximo => {
+                            html += `
+                            <div class="timeline-item">
+                                <div class="d-flex align-items-start mb-2">
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold mb-1" style="color: var(--coffee-dark);">
+                                            ${proximo.tarea}
+                                        </div>
+                                        <div class="text-muted small">
+                                            <i class="fa-solid fa-clock me-1"></i>
+                                            ${proximo.proxima_ejecucion}
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-success">
+                                        <i class="fa-solid fa-check"></i>
+                                    </span>
+                                </div>
+                            </div>`;
+                        });
+                        html += '</div>';
+                        container.innerHTML = html;
+                    } else {
+                        container.innerHTML = `
+                        <div class="text-center text-muted py-4">
+                            <i class="fa-solid fa-calendar-xmark fa-3x mb-3 opacity-50"></i>
+                            <p class="mb-1 fw-bold">Sin Programación</p>
+                            <p class="small mb-0">
+                                Activa los respaldos automáticos arriba para comenzar
+                            </p>
+                        </div>`;
+                    }
+                }
+            } catch (error) {
+                console.error('Error actualizando próximos respaldos:', error);
+            } finally {
+                showSpinner('proximosSpinner', false);
+            }
+        }
+
+        // Actualizar historial
+        async function updateHistorial() {
+            showSpinner('historialSpinner', true);
+            
+            try {
+                const response = await fetch('/respaldos/api/historial-reciente');
+                if (response.ok) {
+                    const data = await response.json();
+                    const container = document.getElementById('historialContainer');
+                    
+                    if (data.length > 0) {
+                        let html = '<div class="list-group list-group-flush">';
+                        data.forEach(item => {
+                            const estadoIcon = item.estado === 'exitoso' || item.estado === 'manual' 
+                                ? '<i class="fa-solid fa-circle-check text-success"></i>' 
+                                : '<i class="fa-solid fa-circle-xmark text-danger"></i>';
+                            
+                            let archivosHtml = '';
+                            if (item.archivos && item.archivos.length > 0) {
+                                archivosHtml = '<div class="mt-2">';
+                                item.archivos.forEach(archivo => {
+                                    archivosHtml += `<small class="badge bg-light text-dark me-1">
+                                        <i class="fa-solid fa-paperclip me-1"></i>${archivo}
+                                    </small>`;
+                                });
+                                archivosHtml += '</div>';
+                            }
+                            
+                            html += `
+                            <div class="list-group-item px-0 py-3 border-0 border-bottom">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <small class="text-muted">
+                                        <i class="fa-solid fa-calendar me-1"></i>
+                                        ${new Date(item.fecha).toLocaleString('es-ES')}
+                                    </small>
+                                    ${estadoIcon}
+                                </div>
+                                <div class="d-flex gap-2 align-items-center flex-wrap">
+                                    <span class="badge bg-primary">${item.formato}</span>
+                                    <small class="text-muted">${item.cantidad_registros} registros</small>
+                                    ${item.archivos && item.archivos.length > 0 ? 
+                                        `<small class="text-success"><i class="fa-solid fa-file me-1"></i>${item.archivos.length} archivo(s)</small>` : ''}
+                                </div>
+                                ${archivosHtml}
+                            </div>`;
+                        });
+                        html += '</div>';
+                        container.innerHTML = html;
+                    } else {
+                        container.innerHTML = `
+                        <div class="text-center text-muted py-4">
+                            <i class="fa-solid fa-box-open fa-3x mb-3 opacity-50"></i>
+                            <p class="mb-0 small">Sin historial aún</p>
+                        </div>`;
+                    }
+                }
+            } catch (error) {
+                console.error('Error actualizando historial:', error);
+            } finally {
+                showSpinner('historialSpinner', false);
+            }
+        }
+
+        // Actualizar archivos recientes
+        async function updateArchivosRecientes() {
+            try {
+                const response = await fetch('/respaldos/api/archivos-recientes');
+                if (response.ok) {
+                    const data = await response.json();
+                    const container = document.getElementById('archivosContainer');
+                    
+                    if (data.length > 0) {
+                        let html = '<div class="list-group list-group-flush">';
+                        data.forEach(archivo => {
+                            html += `
+                            <div class="list-group-item px-0 py-2 border-0 border-bottom">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="flex-grow-1">
+                                        <div class="small fw-bold text-truncate" style="max-width: 200px;">
+                                            <i class="fa-solid fa-file me-1"></i>
+                                            ${archivo.nombre}
+                                        </div>
+                                        <div class="d-flex gap-2 align-items-center mt-1">
+                                            <span class="badge bg-primary small">${archivo.extension}</span>
+                                            <small class="text-muted">${archivo.tamaño_mb} MB</small>
+                                        </div>
+                                    </div>
+                                    <a href="/respaldos/descargar/${archivo.nombre}" 
+                                       class="btn btn-sm btn-success rounded-pill">
+                                        <i class="fa-solid fa-download"></i>
+                                    </a>
+                                </div>
+                            </div>`;
+                        });
+                        html += '</div>';
+                        html += `
+                        <div class="text-center mt-3">
+                            <a href="/respaldos/archivos" class="btn btn-sm btn-outline-primary rounded-pill">
+                                Ver todos los archivos (${data.length})
+                            </a>
+                        </div>`;
+                        container.innerHTML = html;
+                    } else {
+                        container.innerHTML = `
+                        <div class="text-center text-muted py-3">
+                            <i class="fa-solid fa-folder-open fa-2x mb-2 opacity-50"></i>
+                            <p class="small mb-0">Sin archivos guardados</p>
+                        </div>`;
+                    }
+                }
+            } catch (error) {
+                console.error('Error actualizando archivos:', error);
+            }
+        }
+
+        // Toggle auto-refresh
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            const statusElement = document.getElementById('autoRefreshStatus');
+            const toggleButton = document.getElementById('toggleAutoRefresh');
+            
+            if (autoRefreshEnabled) {
+                statusElement.textContent = 'Auto: ON';
+                toggleButton.classList.remove('btn-secondary');
+                toggleButton.classList.add('btn-primary');
+                startAutoRefresh();
+                showRefreshNotification('Actualización automática activada');
+            } else {
+                statusElement.textContent = 'Auto: OFF';
+                toggleButton.classList.remove('btn-primary');
+                toggleButton.classList.add('btn-secondary');
+                stopAutoRefresh();
+                showRefreshNotification('Actualización automática desactivada');
+            }
+        }
+
+        // Iniciar auto-refresh
+        function startAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            autoRefreshInterval = setInterval(refreshData, REFRESH_INTERVAL);
+        }
+
+        // Detener auto-refresh
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        // Actualización manual
+        function manualRefresh() {
+            refreshData();
+            showRefreshNotification('Actualización manual realizada');
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', function () {
+            // Configurar frecuencia
+            updateFrequencyFields();
+            document.getElementById('frecuencia').addEventListener('change', updateFrequencyFields);
+            
+            // Actualizar tiempo cada segundo
+            updateCurrentTime();
+            setInterval(updateCurrentTime, 1000);
+            
+            // Configurar botones
+            document.getElementById('toggleAutoRefresh').addEventListener('click', toggleAutoRefresh);
+            document.getElementById('manualRefresh').addEventListener('click', manualRefresh);
+            
+            // Configurar formularios para AJAX
+            setupForms();
+            
+            // Iniciar auto-refresh
+            startAutoRefresh();
+            
+            // Actualizar cada 30 segundos
+            setInterval(refreshData, REFRESH_INTERVAL);
+            
+            // Primera actualización después de 5 segundos
+            setTimeout(refreshData, 5000);
+        });
+
+        // Configurar formularios para AJAX
+        function setupForms() {
+            // Formulario de configuración
+            const configForm = document.getElementById('configForm');
+            if (configForm) {
+                configForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const formData = new FormData(this);
+                    try {
+                        const response = await fetch(this.action, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        if (response.ok) {
+                            showRefreshNotification('Configuración guardada exitosamente');
+                            // Actualizar datos después de guardar
+                            setTimeout(refreshData, 1000);
+                        }
+                    } catch (error) {
+                        console.error('Error guardando configuración:', error);
+                    }
+                });
+            }
+        }
+
+        // Detener auto-refresh cuando la pestaña no está activa
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                stopAutoRefresh();
+            } else if (autoRefreshEnabled) {
+                startAutoRefresh();
+                refreshData(); // Actualizar al volver
+            }
+        });
+    </script>
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
 </body>
 </html>

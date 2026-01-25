@@ -276,6 +276,7 @@ def configurar_pagina_horizontal(worksheet):
     )
 
 
+<<<<<<< HEAD
 def generar_excel(colecciones, tipo_respaldo="completo"):
     """
     Genera un archivo Excel con todas las colecciones
@@ -356,6 +357,177 @@ def generar_excel(colecciones, tipo_respaldo="completo"):
     buffer.seek(0)
     
     return buffer
+=======
+def generar_excel(colecciones, tipo_backup):
+    """
+    Genera un archivo Excel con los datos de todas las colecciones
+    Retorna: BytesIO con el contenido del Excel
+    """
+    output = BytesIO()
+    
+    # Crear workbook manualmente para más control
+    wb = Workbook()
+    
+    # Remover hoja por defecto
+    if 'Sheet' in wb.sheetnames:
+        default_ws = wb['Sheet']
+        wb.remove(default_ws)
+    
+    # Estilos
+    header_fill = PatternFill(start_color="4A2C2A", end_color="4A2C2A", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True, size=12)
+    even_row_fill = PatternFill(start_color="F5E6D3", end_color="F5E6D3", fill_type="solid")
+    odd_row_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    wrap_alignment = Alignment(wrap_text=True, vertical='top')
+    
+    # ========== HOJA DE INFORMACIÓN ==========
+    info_ws = wb.create_sheet(title="Información")
+    
+    # Configurar orientación horizontal
+    configurar_pagina_horizontal(info_ws)
+    
+    info_ws['A1'] = "RESPALDO DE BASE DE DATOS - NUBE DE CACAO"
+    info_ws['A1'].font = Font(bold=True, size=14, color="4A2C2A")
+    info_ws.merge_cells('A1:C1')
+    
+    info_data = [
+        ["Tipo de Respaldo:", tipo_backup.upper()],
+        ["Fecha de Generación:", datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
+        ["Base de Datos:", "cafeteria_db"],
+        ["Sistema:", "Nube de Cacao - Sistema de Ventas"],
+        ["Colecciones Respaladas:", ", ".join(colecciones.keys()) if colecciones else "Ninguna"],
+        ["Total de Colecciones:", str(len(colecciones))],
+    ]
+    
+    for i, (label, value) in enumerate(info_data, start=3):
+        info_ws[f'A{i}'] = label
+        info_ws[f'A{i}'].font = Font(bold=True)
+        info_ws[f'B{i}'] = value
+    
+    # Ajustar columnas
+    info_ws.column_dimensions['A'].width = 25
+    info_ws.column_dimensions['B'].width = 40
+    
+    # ========== HOJA DE RESUMEN ==========
+    resumen_ws = wb.create_sheet(title="Resumen Colecciones")
+    
+    # Configurar orientación horizontal
+    configurar_pagina_horizontal(resumen_ws)
+    
+    resumen_ws['A1'] = "RESUMEN POR COLECCIÓN"
+    resumen_ws['A1'].font = Font(bold=True, size=14, color="4A2C2A")
+    resumen_ws.merge_cells('A1:C1')
+    
+    # Encabezados
+    headers = ["Colección", "Registros", "Muestra"]
+    for col, header in enumerate(headers, start=1):
+        cell = resumen_ws.cell(row=3, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = thin_border
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Datos
+    total_registros = 0
+    for row, (nombre, datos) in enumerate(colecciones.items(), start=4):
+        cantidad = len(datos)
+        total_registros += cantidad
+        
+        muestra = "No hay registros"
+        if cantidad > 0:
+            muestra = f"{cantidad} registros"
+            if cantidad > 5:
+                muestra = f"{cantidad} registros (primeros 5)"
+        
+        resumen_ws.cell(row=row, column=1, value=nombre).border = thin_border
+        resumen_ws.cell(row=row, column=2, value=cantidad).border = thin_border
+        resumen_ws.cell(row=row, column=3, value=muestra).border = thin_border
+        
+        # Alternar colores de fila
+        fill = even_row_fill if row % 2 == 0 else odd_row_fill
+        for col in range(1, 4):
+            resumen_ws.cell(row=row, column=col).fill = fill
+    
+    # Total
+    total_row = len(colecciones) + 4
+    resumen_ws.cell(row=total_row, column=1, value="TOTAL").font = Font(bold=True)
+    resumen_ws.cell(row=total_row, column=2, value=total_registros).font = Font(bold=True)
+    
+    # Autoajustar columnas
+    auto_ajustar_ancho_columnas(resumen_ws)
+    
+    # ========== HOJAS POR COLECCIÓN ==========
+    for nombre, datos in colecciones.items():
+        # Limitar nombre de hoja a 31 caracteres
+        sheet_name = nombre[:31] if len(nombre) > 31 else nombre
+        
+        # Evitar nombres duplicados
+        if sheet_name in wb.sheetnames:
+            sheet_name = f"{sheet_name[:28]}..."
+        
+        ws = wb.create_sheet(title=sheet_name)
+        
+        # Configurar orientación horizontal
+        configurar_pagina_horizontal(ws)
+        
+        ws['A1'] = f"COLECCIÓN: {nombre.upper()}"
+        ws['A1'].font = Font(bold=True, size=12, color="4A2C2A")
+        ws.merge_cells(f'A1:{get_column_letter(min(10, max(2, len(datos[0].keys()) if datos else 2)))}1')
+        
+        if datos:
+            # Crear DataFrame
+            df = pd.DataFrame(datos)
+            
+            # Escribir encabezados
+            headers = list(df.columns)
+            for col, header in enumerate(headers, start=1):
+                cell = ws.cell(row=3, column=col, value=header)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.border = thin_border
+                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            
+            # Escribir datos
+            for row_idx, (_, row_data) in enumerate(df.iterrows(), start=4):
+                for col_idx, value in enumerate(row_data, start=1):
+                    cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                    cell.border = thin_border
+                    cell.alignment = wrap_alignment
+                    
+                    # Alternar colores de fila
+                    fill = even_row_fill if row_idx % 2 == 0 else odd_row_fill
+                    cell.fill = fill
+                    
+                    # Formatear fechas largas
+                    if isinstance(value, str) and len(value) > 100:
+                        ws.column_dimensions[get_column_letter(col_idx)].width = 30
+            
+            # Filtrar fila al final
+            if headers:
+                ws.auto_filter.ref = f"A3:{get_column_letter(len(headers))}{len(datos) + 3}"
+        else:
+            ws['A3'] = "No hay registros en esta colección"
+            ws['A3'].font = Font(italic=True)
+        
+        # Autoajustar columnas
+        auto_ajustar_ancho_columnas(ws)
+        
+        # Congelar paneles (encabezados)
+        if datos:
+            ws.freeze_panes = 'A4'
+    
+    # Guardar en BytesIO
+    wb.save(output)
+    output.seek(0)
+    return output
+
+>>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
 
 def generar_pdf(colecciones, tipo_backup):
     """
