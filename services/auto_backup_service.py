@@ -220,16 +220,10 @@ def obtener_proximos_respaldos():
 def ejecutar_respaldo_programado():
     """
     Función que se ejecuta automáticamente según el horario.
-<<<<<<< HEAD
     Genera archivos, los guarda en el servidor Y los envía por correo si está configurado.
     """
     from services.backup_service import generar_excel, generar_pdf, generar_sql
     from services.email_service import enviar_email_respaldo, cargar_config_email
-=======
-    Genera archivos y los guarda en la carpeta backups_automaticos/
-    """
-    from services.backup_service import generar_excel, generar_pdf, generar_sql
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
     
     config = cargar_config()
     
@@ -262,10 +256,7 @@ def ejecutar_respaldo_programado():
         colecciones_respaldadas = {nombre: len(datos) for nombre, datos in colecciones.items()}
         
         archivos_generados = []
-<<<<<<< HEAD
         archivos_paths = []  # Para envío por correo
-=======
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
         
         # Generar archivos según configuración
         if formato_config == "todos" or formato_config == "excel":
@@ -277,10 +268,7 @@ def ejecutar_respaldo_programado():
                 f.write(archivo_excel.getvalue())
             
             archivos_generados.append(filename)
-<<<<<<< HEAD
             archivos_paths.append(filepath)
-=======
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
             print(f"  ✅ Excel generado: {filename}")
         
         if formato_config == "todos" or formato_config == "pdf":
@@ -292,10 +280,7 @@ def ejecutar_respaldo_programado():
                 f.write(archivo_pdf.getvalue())
             
             archivos_generados.append(filename)
-<<<<<<< HEAD
             archivos_paths.append(filepath)
-=======
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
             print(f"  ✅ PDF generado: {filename}")
         
         if formato_config == "todos" or formato_config == "sql":
@@ -307,10 +292,7 @@ def ejecutar_respaldo_programado():
                 f.write(archivo_sql.getvalue())
             
             archivos_generados.append(filename)
-<<<<<<< HEAD
             archivos_paths.append(filepath)
-=======
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
             print(f"  ✅ SQL generado: {filename}")
         
         # Registrar en historial
@@ -328,7 +310,6 @@ def ejecutar_respaldo_programado():
         print(f"   📁 Colecciones: {len(colecciones)}")
         print(f"   💾 Archivos: {len(archivos_generados)}")
         
-<<<<<<< HEAD
         # ========== ENVIAR POR CORREO SI ESTÁ CONFIGURADO ==========
         email_config = cargar_config_email()
         if email_config.get("activo", False):
@@ -346,19 +327,14 @@ def ejecutar_respaldo_programado():
         else:
             print(f"   ℹ️ Envío por correo desactivado")
         
-=======
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
         # Limpiar archivos antiguos si está configurado
         if config.get("limpiar_antiguos", False):
             limpiar_backups_antiguos(config.get("dias_retener", 30))
         
     except Exception as e:
         print(f"❌ Error en respaldo automático: {e}")
-<<<<<<< HEAD
         import traceback
         traceback.print_exc()
-=======
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
         agregar_historial(
             config.get("tipo_respaldo", "completo"), 
             config.get("formato", "todos"), 
@@ -398,18 +374,13 @@ def limpiar_backups_antiguos(dias_retener=30):
 
 def listar_archivos_guardados():
     """
-<<<<<<< HEAD
     Lista todos los archivos de respaldo guardados con su información.
     Solo muestra archivos que realmente existen en el disco.
-=======
-    Lista todos los archivos de respaldo guardados con su información
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
     """
     archivos = []
     ahora = datetime.now()
     
     try:
-<<<<<<< HEAD
         # Verificar que el directorio existe
         if not os.path.exists(BACKUPS_STORAGE_DIR):
             return archivos
@@ -466,55 +437,6 @@ def listar_archivos_guardados():
                 except Exception as e:
                     print(f"Error procesando archivo {filename}: {e}")
                     continue
-=======
-        for filename in os.listdir(BACKUPS_STORAGE_DIR):
-            filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
-            
-            if os.path.isfile(filepath):
-                stat = os.stat(filepath)
-                fecha_mod = datetime.fromtimestamp(stat.st_mtime)
-                
-                # Detectar si es nuevo (menos de 1 hora)
-                es_nuevo = (ahora - fecha_mod).seconds < 3600
-                
-                # Detectar tipo de respaldo por nombre de archivo
-                if 'auto_completo' in filename:
-                    tipo_respaldo = "Completo Automático"
-                    tipo_color = "primary"
-                elif 'auto_incremental' in filename:
-                    tipo_respaldo = "Incremental Automático"
-                    tipo_color = "warning"
-                elif 'auto_diferencial' in filename:
-                    tipo_respaldo = "Diferencial Automático"
-                    tipo_color = "secondary"
-                elif 'manual' in filename:
-                    tipo_respaldo = "Manual"
-                    tipo_color = "info"
-                elif 'completo' in filename:
-                    tipo_respaldo = "Completo"
-                    tipo_color = "primary"
-                elif 'incremental' in filename:
-                    tipo_respaldo = "Incremental"
-                    tipo_color = "warning"
-                elif 'diferencial' in filename:
-                    tipo_respaldo = "Diferencial"
-                    tipo_color = "secondary"
-                else:
-                    tipo_respaldo = "Respaldo"
-                    tipo_color = "dark"
-                
-                archivos.append({
-                    "nombre": filename,
-                    "ruta": filepath,
-                    "tamaño": stat.st_size,
-                    "tamaño_mb": round(stat.st_size / (1024 * 1024), 2),
-                    "fecha": fecha_mod.strftime("%Y-%m-%d %H:%M:%S"),
-                    "extension": filename.split('.')[-1].upper(),
-                    "es_nuevo": es_nuevo,
-                    "tipo_respaldo": tipo_respaldo,
-                    "tipo_color": tipo_color
-                })
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
         
         # Ordenar por fecha (más recientes primero)
         archivos.sort(key=lambda x: x["fecha"], reverse=True)
@@ -532,34 +454,22 @@ def eliminar_archivo(filename):
     try:
         filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
         
-<<<<<<< HEAD
         if os.path.exists(filepath) and os.path.isfile(filepath):
             os.remove(filepath)
             print(f"✅ Archivo eliminado: {filename}")
-=======
-        if os.path.exists(filepath):
-            os.remove(filepath)
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
             return True, "Archivo eliminado exitosamente"
         else:
             return False, "Archivo no encontrado"
     
     except Exception as e:
-<<<<<<< HEAD
         print(f"❌ Error al eliminar {filename}: {e}")
-=======
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
         return False, f"Error al eliminar archivo: {str(e)}"
 
 
 def obtener_estadisticas_storage():
     """
-<<<<<<< HEAD
     Obtiene estadísticas del almacenamiento de respaldos.
     Solo cuenta archivos que realmente existen.
-=======
-    Obtiene estadísticas del almacenamiento de respaldos
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
     """
     try:
         archivos = listar_archivos_guardados()
@@ -694,7 +604,6 @@ def obtener_colecciones_actuales():
     except:
         return []
 
-<<<<<<< HEAD
 def ejecutar_respaldo_prueba():
     """
     Ejecuta un respaldo de prueba y lo envía por correo si está configurado.
@@ -786,10 +695,10 @@ def ejecutar_respaldo_prueba():
         
         # Enviar por correo si está configurado
         email_config = cargar_config_email()
-        mensaje_resultado = f" Respaldo de prueba completado:<br>{total_registros} registros<br> {len(archivos_generados)} archivo(s) generado(s)"
+        mensaje_resultado = f"✅ Respaldo de prueba completado:<br>📊 {total_registros} registros<br>📁 {len(archivos_generados)} archivo(s) generado(s)"
         
         if email_config.get("activo", False):
-            print(f" Enviando respaldo por correo...")
+            print(f"📧 Enviando respaldo por correo...")
             success, mensaje_email = enviar_email_respaldo(
                 archivos_paths,
                 tipo_respaldo,
@@ -797,21 +706,16 @@ def ejecutar_respaldo_prueba():
                 colecciones_respaldadas
             )
             if success:
-                mensaje_resultado += f"<br><br> {mensaje_email}"
+                mensaje_resultado += f"<br><br>📧 {mensaje_email}"
             else:
-                mensaje_resultado += f"<br><br>Archivos generados pero no se pudo enviar por correo: {mensaje_email}"
+                mensaje_resultado += f"<br><br>⚠️ Archivos generados pero no se pudo enviar por correo: {mensaje_email}"
         else:
-            mensaje_resultado += "<br><br>ℹEnvío por correo desactivado"
+            mensaje_resultado += "<br><br>ℹ️ Envío por correo desactivado"
         
         return True, mensaje_resultado
     
     except Exception as e:
         import traceback
         error_detallado = traceback.format_exc()
-        print(f" Error en respaldo de prueba:\n{error_detallado}")
+        print(f"❌ Error en respaldo de prueba:\n{error_detallado}")
         return False, f"Error en respaldo de prueba: {str(e)}"
-=======
-
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
-# Inicializar scheduler al importar el módulo
-configurar_scheduler()

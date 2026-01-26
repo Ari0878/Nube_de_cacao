@@ -1,8 +1,7 @@
-<<<<<<< HEAD
+# app.py
 from flask import Flask, render_template, request, redirect, session, flash,jsonify
-=======
 from flask import Flask, render_template, request, redirect, session, flash
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
+
 from services.auth_service import verificar_usuario, registrar_usuario
 from services.ventas_service import cargar_y_analizar_ventas
 from services.analisis_service import analizar_datos_con_spark
@@ -24,12 +23,12 @@ app.secret_key = "super_secret_key"
 
 @app.route("/")
 def index():
-<<<<<<< HEAD
+
     session.clear()
-=======
+
     if session.get("logged_in"):
         return redirect("/dashboard")
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
+
     return redirect("/login")
 
 @app.route("/login", methods=["GET", "POST"])
@@ -42,7 +41,7 @@ def login():
             flash("Por favor ingresa correo y contraseña.", "danger")
             return redirect("/login")
         
-<<<<<<< HEAD
+
         # IMPORTANTE: Cambiar "email" por "correo" si tu BD usa "correo"
         usuario = verificar_usuario(email, password)
         
@@ -148,19 +147,18 @@ def reservation():
 
 
 
-=======
-        if verificar_usuario(email, password):
+
+    if verificar_usuario(email, password):
             session.permanent = True
             session["logged_in"] = True
             session["user_email"] = email
             flash(f"Bienvenido de nuevo!", "success")
             return redirect("/dashboard")
-        else:
+    else:
             flash("Correo o contraseña incorrectos.", "danger")
             return redirect("/login")
     return render_template("login.html")
 
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
 @app.route("/register", methods=["POST"])
 def register():
     email = request.form.get("reg_email", "").strip()
@@ -935,7 +933,6 @@ def forzar_ejecucion_respaldo():
 #     modelo = entrenar_modelo_polinomico(grado)
     
 #     return render_template("regresion_polinomica.html", modelo=modelo, grado=grado)
-<<<<<<< HEAD
 # ========== RUTAS API PARA CONFIGURACIÓN DE RESPALDOS ==========
 
 @app.route('/respaldos/api/estadisticas', methods=['GET'])
@@ -1105,8 +1102,7 @@ def ejecutar_prueba_respaldo():
             "success": False,
             "message": f"Error: {str(e)}"
         }), 500
-=======
->>>>>>> 780471aaad8e0660f171008fca575cfa4318cd41
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
