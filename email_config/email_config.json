@@ -1,0 +1,13 @@
+{
+  "activo": true,
+  "smtp_server": "smtp.gmail.com",
+  "smtp_port": 587,
+  "email_from": "al222310566@gmail.com",
+  "email_password": "bzjt agkb ebeh qfkb",
+  "emails_destino": [
+    "ariatnahernandez05@gmail.com",
+    "al222310566@gmail.com"
+  ],
+  "incluir_adjuntos": true,
+  "max_size_mb": 25
+}
