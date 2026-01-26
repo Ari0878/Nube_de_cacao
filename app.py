@@ -1192,5 +1192,138 @@ def cancelar_recuperacion():
     flash("Proceso de recuperación cancelado.", "info")
     return redirect("/login")
 
+# ========== RUTAS DE RESTAURACIÓN DE RESPALDOS ==========
+
+@app.route("/restaurar")
+def restaurar_respaldos():
+    """Página de restauración de respaldos"""
+    if not session.get("logged_in"):
+        flash("Debes iniciar sesión para acceder.", "warning")
+        return redirect("/login")
+    
+    # Solo admin puede restaurar
+    if session.get("user_role") != "admin":
+        flash("No tienes permisos para acceder a esta sección.", "danger")
+        return redirect("/dashboard")
+    
+    from services.restore_service import cargar_historial_restauraciones, obtener_estadisticas_restauraciones
+    
+    historial = cargar_historial_restauraciones()[:10]  # Últimas 10
+    estadisticas = obtener_estadisticas_restauraciones()
+    
+    # Formatear fechas
+    for item in historial:
+        try:
+            fecha_dt = datetime.fromisoformat(item["fecha"])
+            item["fecha"] = fecha_dt.strftime("%Y-%m-%d %H:%M:%S")
+        except:
+            pass
+    
+    return render_template(
+        "restaurar.html",
+        historial=historial,
+        estadisticas=estadisticas
+    )
+
+
+@app.route("/restaurar/subir", methods=["POST"])
+def subir_archivo_restauracion():
+    """Procesa el archivo de restauración subido"""
+    if not session.get("logged_in"):
+        return redirect("/login")
+    
+    if session.get("user_role") != "admin":
+        flash("No tienes permisos para realizar esta acción.", "danger")
+        return redirect("/dashboard")
+    
+    from services.restore_service import validar_archivo_restauracion, restaurar_desde_sql, restaurar_desde_excel, restaurar_desde_json
+    
+    # Verificar que se haya subido un archivo
+    if 'archivo' not in request.files:
+        flash("❌ No se seleccionó ningún archivo.", "danger")
+        return redirect("/restaurar")
+    
+    file = request.files['archivo']
+    
+    if file.filename == '':
+        flash("❌ No se seleccionó ningún archivo.", "danger")
+        return redirect("/restaurar")
+    
+    # Validar archivo
+    valido, extension, mensaje = validar_archivo_restauracion(file.filename)
+    
+    if not valido:
+        flash(f"❌ {mensaje}", "danger")
+        return redirect("/restaurar")
+    
+    try:
+        # Leer contenido del archivo
+        file_content = file.read()
+        
+        # Procesar según extensión
+        if extension == '.sql':
+            success, mensaje, stats = restaurar_desde_sql(file_content)
+        elif extension == '.xlsx':
+            success, mensaje, stats = restaurar_desde_excel(file_content)
+        elif extension == '.json':
+            success, mensaje, stats = restaurar_desde_json(file_content)
+        else:
+            flash("❌ Formato de archivo no soportado.", "danger")
+            return redirect("/restaurar")
+        
+        if success:
+            flash(f"✅ {mensaje}", "success")
+            
+            # Mostrar detalles
+            if stats.get("detalles"):
+                detalles = "<br>".join([f"📂 {col}: {cant} registros" for col, cant in stats["detalles"].items()])
+                flash(f"Detalles de la restauración:<br>{detalles}", "info")
+        else:
+            flash(f"❌ {mensaje}", "danger")
+    
+    except Exception as e:
+        flash(f"❌ Error al procesar archivo: {str(e)}", "danger")
+        import traceback
+        traceback.print_exc()
+    
+    return redirect("/restaurar")
+
+
+@app.route("/restaurar/historial")
+def historial_restauraciones():
+    """Retorna el historial completo de restauraciones en JSON"""
+    if not session.get("logged_in"):
+        return {"error": "No autorizado"}, 401
+    
+    from services.restore_service import cargar_historial_restauraciones
+    
+    historial = cargar_historial_restauraciones()
+    return jsonify(historial)
+@app.route("/restaurar/limpiar-historial", methods=["POST"])
+def limpiar_historial_restauraciones():
+    """Limpia completamente el historial de restauraciones"""
+    if not session.get("logged_in"):
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+    
+    if session.get("user_role") != "admin":
+        return jsonify({"success": False, "message": "No tienes permisos"}), 403
+    
+    try:
+        from services.restore_service import guardar_historial_restauraciones
+        
+        # Limpiar historial (guardar lista vacía)
+        guardar_historial_restauraciones([])
+        
+        return jsonify({
+            "success": True,
+            "message": "Historial limpiado exitosamente"
+        })
+    
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Error al limpiar historial: {str(e)}"
+        }), 500
+        
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
