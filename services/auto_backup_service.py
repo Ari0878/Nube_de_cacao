@@ -695,10 +695,10 @@ def ejecutar_respaldo_prueba():
         
         # Enviar por correo si está configurado
         email_config = cargar_config_email()
-        mensaje_resultado = f"✅ Respaldo de prueba completado:<br>📊 {total_registros} registros<br>📁 {len(archivos_generados)} archivo(s) generado(s)"
+        mensaje_resultado = f"Respaldo de prueba completado:<br> {total_registros} registros<br> {len(archivos_generados)} archivo(s) generado(s)"
         
         if email_config.get("activo", False):
-            print(f"📧 Enviando respaldo por correo...")
+            print(f"Enviando respaldo por correo...")
             success, mensaje_email = enviar_email_respaldo(
                 archivos_paths,
                 tipo_respaldo,
