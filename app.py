@@ -1103,6 +1103,94 @@ def ejecutar_prueba_respaldo():
             "message": f"Error: {str(e)}"
         }), 500
 
+# ========== RUTAS DE RECUPERACIÓN DE CONTRASEÑA (SEGURAS) ==========
+
+@app.route("/recuperar-password", methods=["POST"])
+def recuperar_password():
+    """Solicita un código de recuperación"""
+    from services.auth_service import crear_codigo_recuperacion
+    from services.email_service import enviar_codigo_recuperacion
+    
+    email = request.form.get("email", "").strip()
+    
+    if not email:
+        flash("Por favor ingresa tu correo electrónico.", "danger")
+        return redirect("/login")
+    
+    # Crear código
+    success, codigo, mensaje = crear_codigo_recuperacion(email)
+    
+    if not success:
+        flash(mensaje, "danger")
+        return redirect("/login")
+    
+    # Enviar código por correo
+    enviado, msg_email = enviar_codigo_recuperacion(email, codigo)
+    
+    if enviado:
+        # ✅ GUARDAR EMAIL EN SESIÓN (NO EN URL)
+        session['recovery_email'] = email
+        session['recovery_step'] = 2
+        
+        flash(f"✅ Código enviado a tu correo. Revisa tu bandeja de entrada.", "success")
+        return redirect("/login#recovery")  # Sin parámetros sensibles
+    else:
+        flash(f"❌ Error al enviar el correo: {msg_email}", "danger")
+        return redirect("/login")
+
+
+@app.route("/restablecer-password", methods=["POST"])
+def restablecer_password_route():
+    """Restablece la contraseña con el código"""
+    from services.auth_service import restablecer_password
+    
+    # ✅ OBTENER EMAIL DE SESIÓN (NO DE FORMULARIO)
+    email = session.get('recovery_email')
+    
+    if not email:
+        flash("⚠️ Sesión expirada. Solicita un nuevo código.", "warning")
+        return redirect("/login")
+    
+    codigo = request.form.get("codigo", "").strip()
+    nueva_password = request.form.get("nueva_password", "")
+    confirmar_password = request.form.get("confirmar_password", "")
+    
+    # Validaciones
+    if not all([codigo, nueva_password, confirmar_password]):
+        flash("Todos los campos son obligatorios.", "danger")
+        return redirect("/login#recovery")
+    
+    if nueva_password != confirmar_password:
+        flash("Las contraseñas no coinciden.", "danger")
+        return redirect("/login#recovery")
+    
+    if len(nueva_password) < 6:
+        flash("La contraseña debe tener al menos 6 caracteres.", "danger")
+        return redirect("/login#recovery")
+    
+    # Restablecer contraseña
+    success, mensaje = restablecer_password(email, codigo, nueva_password)
+    
+    if success:
+        # ✅ LIMPIAR SESIÓN DE RECUPERACIÓN
+        session.pop('recovery_email', None)
+        session.pop('recovery_step', None)
+        
+        flash("✅ Contraseña restablecida exitosamente. Ahora puedes iniciar sesión.", "success")
+        return redirect("/login")
+    else:
+        flash(f"❌ {mensaje}", "danger")
+        return redirect("/login#recovery")
+
+
+# RUTA PARA CANCELAR RECUPERACIÓN (OPCIONAL)
+@app.route("/cancelar-recuperacion")
+def cancelar_recuperacion():
+    """Cancela el proceso de recuperación y limpia la sesión"""
+    session.pop('recovery_email', None)
+    session.pop('recovery_step', None)
+    flash("Proceso de recuperación cancelado.", "info")
+    return redirect("/login")
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
