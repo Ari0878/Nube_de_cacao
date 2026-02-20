@@ -1,7 +1,7 @@
 # services/analisis_service.py
 
 import pandas as pd
-from db import collection
+from db import ventas_col   # ✅ CORREGIDO
 
 def analizar_datos_con_spark(pd_ventas=None):
     """
@@ -15,7 +15,7 @@ def analizar_datos_con_spark(pd_ventas=None):
     # Si no se pasó DataFrame, obtenerlo de MongoDB
     if pd_ventas is None or pd_ventas.empty:
         try:
-            ventas_list = list(collection.find())
+            ventas_list = list(ventas_col.find())   # ✅ CORREGIDO
             if not ventas_list:
                 return None, None
             
@@ -42,7 +42,6 @@ def analizar_datos_con_spark(pd_ventas=None):
             total_ventas=('total', 'sum')
         ).reset_index()
         
-        # Convertir a lista de diccionarios para fácil uso en Jinja
         ventas_por_tipo = resumen_data.to_dict('records')
 
         # ---------------------- Tendencias ----------------------
@@ -58,7 +57,6 @@ def analizar_datos_con_spark(pd_ventas=None):
             except:
                 top_cliente = "N/A"
 
-        # ---------------------- Estructura de Datos de Retorno ----------------------
         datos_analisis = {
             "total_productos": total_productos,
             "total_ingresos": total_ingresos,

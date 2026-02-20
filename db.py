@@ -1,27 +1,43 @@
 # db.py
-# ---------------------- CONEXIÓN A MONGODB ----------------------
+# ---------------------- CONEXIÓN A MONGODB ATLAS ----------------------
+
+import os
 from pymongo import MongoClient
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
 
 try:
-    # Conexión local a MongoDB
-    client = MongoClient("mongodb://localhost:27017/")
+    # Obtener variables del .env
+    MONGO_USER = os.getenv("MONGO_USER")
+    MONGO_PASSWORD = os.getenv("MONGO_PASSWORD")
+    MONGO_CLUSTER = os.getenv("MONGO_CLUSTER")
+    MONGO_DB = os.getenv("MONGO_DB")
 
-    # Base de datos principal
-    db = client["cafeteria_db"]
+    # Construir URI de conexión
+    uri = f"mongodb+srv://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_CLUSTER}/{MONGO_DB}?retryWrites=true&w=majority"
+
+    # Crear cliente
+    client = MongoClient(uri)
+
+    # Base de datos
+    db = client[MONGO_DB]
 
     # Colecciones
-    collection = db["ventas"]
+    productos_col = db["productos"]
+    ventas_col = db["ventas"]
     usuarios_col = db["usuarios"]
 
     # Probar conexión
     client.server_info()
+    print("✅ Conectado correctamente a MongoDB Atlas")
 
 except Exception as e:
-    # No detener el servidor Flask.
-    print(f"CRITICAL: No se pudo conectar a MongoDB: {e}")
+    print(f"❌ CRITICAL: No se pudo conectar a MongoDB Atlas: {e}")
 
-    # Variables en None para evitar errores en los módulos que importen db
     client = None
     db = None
-    collection = None
+    productos_col = None
+    ventas_col = None
     usuarios_col = None

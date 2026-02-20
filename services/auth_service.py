@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 import random
 import string
 
-client = MongoClient("mongodb://localhost:27017/")
-db = client["cafeteria_db"]
+from db import db
+
 usuarios_col = db["usuarios"]
 codigos_recuperacion_col = db["codigos_recuperacion"]
 

@@ -14,7 +14,7 @@ from services.perfil_service import (
 )
 
 from config import PRECIOS
-from db import collection
+from db import ventas_col
 from datetime import datetime
 import os
 
@@ -276,7 +276,7 @@ def registrar_venta():
 
 @app.route("/ventas/historial")
 def historial():
-    ventas = list(collection.find().sort("fecha", -1))
+    vventas = list(ventas_col.find().sort("fecha", -1))
     for v in ventas:
         v["_id"] = str(v["_id"])
         v["fecha"] = v["fecha"].strftime("%Y-%m-%d %H:%M:%S")

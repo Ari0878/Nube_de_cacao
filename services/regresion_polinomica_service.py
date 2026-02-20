@@ -3,13 +3,12 @@ import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.metrics import mean_squared_error, r2_score
-from db import collection
+from db import ventas_col   # ✅ CORREGIDO
 
 def obtener_datos_ventas_polinomica():
     """Obtiene datos de ventas de MongoDB para regresión polinómica"""
     try:
-        # Obtener las últimas 500 ventas
-        ventas = list(collection.find(
+        ventas = list(ventas_col.find(   # ✅ CORREGIDO
             {},
             {'_id': 0, 'cantidad': 1, 'total': 1}
         ).limit(500))
@@ -17,15 +16,28 @@ def obtener_datos_ventas_polinomica():
         if len(ventas) < 10:
             return None, None
         
-        # Convertir a arrays
         df = pd.DataFrame(ventas)
+
+        # Validar columnas necesarias
+        if 'cantidad' not in df.columns or 'total' not in df.columns:
+            return None, None
+
+        # Eliminar valores nulos o inválidos
+        df = df.dropna(subset=['cantidad', 'total'])
+        df = df[(df['cantidad'] > 0) & (df['total'] > 0)]
+
+        if len(df) < 10:
+            return None, None
+
         X = df['cantidad'].values.reshape(-1, 1)
         y = df['total'].values
         
         return X, y
+
     except Exception as e:
         print(f"Error obtener_datos_ventas_polinomica: {e}")
         return None, None
+
 
 def entrenar_modelo_polinomico(grado=2):
     """Entrena un modelo de regresión polinómica"""
@@ -35,35 +47,32 @@ def entrenar_modelo_polinomico(grado=2):
         if X is None or len(X) < 10:
             return None
         
-        # Transformación polinómica
         poly = PolynomialFeatures(degree=grado)
         X_poly = poly.fit_transform(X)
         
-        # Entrenar modelo
         modelo = LinearRegression()
         modelo.fit(X_poly, y)
         y_pred = modelo.predict(X_poly)
         
-        # Métricas
         rmse = np.sqrt(mean_squared_error(y, y_pred))
         r2 = r2_score(y, y_pred)
         residuales = y - y_pred
         
-        # Diagnóstico inteligente
+        # Diagnóstico
         if r2 < 0.6:
-            diagnostico = "El modelo tiene bajo poder explicativo. Probablemente está **subajustando** (underfitting)."
+            diagnostico = "El modelo tiene bajo poder explicativo. Probablemente está subajustando (underfitting)."
             color_diagnostico = "warning"
-        elif 0.6 <= r2 <= 0.95 and rmse > 1:
-            diagnostico = "El modelo se ajusta bien a los datos. Hay un **equilibrio razonable** entre sesgo y varianza."
+        elif 0.6 <= r2 <= 0.95:
+            diagnostico = "El modelo se ajusta bien a los datos. Hay equilibrio razonable."
             color_diagnostico = "success"
-        elif r2 > 0.95 and rmse < 3:
-            diagnostico = "El modelo podría estar **sobreajustando** (overfitting). Ajusta demasiado el ruido."
+        elif r2 > 0.95:
+            diagnostico = "El modelo podría estar sobreajustando (overfitting)."
             color_diagnostico = "danger"
         else:
             diagnostico = "El modelo parece razonablemente ajustado."
             color_diagnostico = "info"
         
-        # Generar curva suave para visualización
+        # Curva suave para gráfica
         X_linea = np.linspace(X.min(), X.max(), 100).reshape(-1, 1)
         X_linea_poly = poly.transform(X_linea)
         y_linea = modelo.predict(X_linea_poly)
@@ -84,6 +93,7 @@ def entrenar_modelo_polinomico(grado=2):
             'diagnostico': diagnostico,
             'color_diagnostico': color_diagnostico
         }
+
     except Exception as e:
         print(f"Error entrenar_modelo_polinomico: {e}")
         return None

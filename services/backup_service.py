@@ -13,7 +13,7 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.lib.units import inch, cm
-from db import db, collection, usuarios_col
+from db import db   # ✅ CORREGIDO
 import pickle
 
 # Directorio para almacenar metadatos de respaldos
