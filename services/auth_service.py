@@ -8,7 +8,7 @@ import string
 
 from db import db
 
-usuarios_col = db["usuarios"]
+usuarios_col = db["MONGO_COLLECTIONS"]
 codigos_recuperacion_col = db["codigos_recuperacion"]
 
 
