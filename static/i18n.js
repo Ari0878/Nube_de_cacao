@@ -83,11 +83,34 @@ class I18n {
 // Instancia global
 const i18n = new I18n();
 
+// Añadimos soporte para tema claro/oscuro usando localStorage y preferencia del sistema
+I18n.prototype.getTheme = function() {
+    return localStorage.getItem('theme') || 'auto';
+};
+
+I18n.prototype.setTheme = function(theme) {
+    if (!theme) return;
+    localStorage.setItem('theme', theme);
+    this.applyTheme(theme);
+};
+
+I18n.prototype.applyTheme = function(theme) {
+    const resolvedTheme = theme || this.getTheme();
+
+    if (resolvedTheme === 'auto') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.body.classList.toggle('dark-mode', prefersDark);
+    } else {
+        document.body.classList.toggle('dark-mode', resolvedTheme === 'dark');
+    }
+};
+
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', async () => {
     await i18n.init();
     i18n.translatePage();
-    
+    i18n.applyTheme(i18n.getTheme());
+
     // Actualizar selectores de idioma si existen
     const langSelectors = document.querySelectorAll('select[name="idioma"]');
     langSelectors.forEach(selector => {

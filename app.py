@@ -1,6 +1,6 @@
 # app.py
-from flask import Flask, render_template, request, redirect, session, flash,jsonify
-from flask import Flask, render_template, request, redirect, session, flash
+from flask import Flask, render_template, request, redirect, session, flash, jsonify, send_file, get_flashed_messages
+from functools import wraps
 
 from services.auth_service import verificar_usuario, registrar_usuario
 from services.ventas_service import cargar_y_analizar_ventas
@@ -14,50 +14,73 @@ from services.perfil_service import (
 )
 
 from config import PRECIOS
-from db import collection
+# CAMBIO IMPORTANTE: Ya no importamos 'collection' porque no existe
+from db import conn, cursor, ventas_table, usuarios_table
 from datetime import datetime
 import os
 
 app = Flask(__name__)
 app.secret_key = "super_secret_key"
 
+
+def login_required(func):
+    """Decorador que exige estar autenticado."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if not session.get("logged_in"):
+            flash("Debes iniciar sesión para acceder.", "warning")
+            return redirect("/login")
+        return func(*args, **kwargs)
+    return wrapper
+
+
+def admin_required(func):
+    """Decorador que exige ser administrador."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if not session.get("logged_in"):
+            flash("Debes iniciar sesión para acceder.", "warning")
+            return redirect("/login")
+        if session.get("user_role") != "admin":
+            flash("No tienes permisos para acceder a esta sección.", "danger")
+            return redirect("/dashboard")
+        return func(*args, **kwargs)
+    return wrapper
+
+
 @app.route("/")
 def index():
-
     session.clear()
-
     if session.get("logged_in"):
         return redirect("/dashboard")
-
     return redirect("/login")
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        email = request.form.get("email", "").strip()
+        # Aceptamos tanto 'correo' como 'email' desde el formulario, para evitar desajustes entre frontend/back
+        correo = request.form.get("correo", "").strip() or request.form.get("email", "").strip()
         password = request.form.get("password", "")
         
-        if not email or not password:
+        if not correo or not password:
             flash("Por favor ingresa correo y contraseña.", "danger")
             return redirect("/login")
         
-
-        # IMPORTANTE: Cambiar "email" por "correo" si tu BD usa "correo"
-        usuario = verificar_usuario(email, password)
+        usuario = verificar_usuario(correo, password)
         
         if usuario:  # Ahora es un diccionario, no un booleano
             session.permanent = True
             session["logged_in"] = True
-            session["user_email"] = email
+            session["user_correo"] = correo
             session["user_name"] = usuario.get("nombre", "")
-            session["user_role"] = usuario.get("roll", "usuario")  # Nota: "roll" con doble L
-            session["user_id"] = usuario.get("_id", "")
+            session["user_role"] = usuario.get("rol", "usuario")  # Nota: "roll" con doble L
+            session["user_id"] = usuario.get("id", "")  # Cambiado de _id a id para MySQL
             
             nombre_display = session["user_name"] if session["user_name"] else "Usuario"
             flash(f"¡Bienvenido de nuevo, {nombre_display}!", "success")
             
             # Redirigir según el rol
-            rol = usuario.get("roll", "usuario")  # Usar "roll" con doble L
+            rol = usuario.get("rol", "usuario")
             if rol == "admin":
                 return redirect("/dashboard")
             else:
@@ -66,106 +89,68 @@ def login():
             flash("Correo o contraseña incorrectos.", "danger")
             return redirect("/login")
     
+    # Limpiar mensajes antiguos (evita que errores de restauración aparezcan en la pantalla de login)
+    get_flashed_messages()
     return render_template("login.html")
 
 @app.route("/ndc")
+@login_required
 def ndc_home():
-    """Página principal para usuarios normales (no admin)"""
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    
-    # Verificar que no sea admin (por seguridad)
-    if session.get("user_role") == "admin":
-        return redirect("/dashboard")  # Si es admin, redirigir al dashboard
-    
-    return render_template("index.html",  # <--- CAMBIO AQUÍ
-                         usuario=session.get("user_name"),
-                         email=session.get("user_email"))
-                         
-
+    """Redirige al dashboard (usuarios normales)."""
+    return redirect("/dashboard")
 
 @app.route("/menu")
+@login_required
 def menu():
     """Página del menú"""
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    
     if session.get("user_role") == "admin":
         return redirect("/dashboard")
     
     return render_template("menu.html")
 
 @app.route("/about")
+@login_required
 def about():
     """Página about"""
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    
     if session.get("user_role") == "admin":
         return redirect("/dashboard")
     
     return render_template("about.html")
 
 @app.route("/contact")
+@login_required
 def contact():
     """Página de contacto"""
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    
     if session.get("user_role") == "admin":
         return redirect("/dashboard")
     
     return render_template("contact.html")
 
 @app.route("/gallery")
+@login_required
 def gallery():
     """Página de galería"""
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    
     if session.get("user_role") == "admin":
         return redirect("/dashboard")
     
     return render_template("gallery.html")
 
 @app.route("/reservation")
+@login_required
 def reservation():
     """Página de reservaciones"""
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    
     if session.get("user_role") == "admin":
         return redirect("/dashboard")
     
     return render_template("reservation.html")
 
-
-
-
-    if verificar_usuario(email, password):
-            session.permanent = True
-            session["logged_in"] = True
-            session["user_email"] = email
-            flash(f"Bienvenido de nuevo!", "success")
-            return redirect("/dashboard")
-    else:
-            flash("Correo o contraseña incorrectos.", "danger")
-            return redirect("/login")
-    return render_template("login.html")
-
 @app.route("/register", methods=["POST"])
 def register():
-    email = request.form.get("reg_email", "").strip()
+    correo = request.form.get("reg_email", "").strip()
     pwd = request.form.get("reg_password", "")
     conf = request.form.get("reg_confirm", "")
     
-    if not email or not pwd or not conf:
+    if not correo or not pwd or not conf:
         flash("Todos los campos son obligatorios.", "danger")
         return redirect("/login")
     
@@ -173,7 +158,7 @@ def register():
         flash("Las contraseñas no coinciden.", "danger")
         return redirect("/login")
     
-    success, msg = registrar_usuario(email, pwd)
+    success, msg = registrar_usuario(correo, pwd)
     if success:
         flash(msg + " Ahora puedes iniciar sesión.", "success")
         return redirect("/login")
@@ -188,20 +173,46 @@ def logout():
     return redirect("/login")
 
 @app.route("/dashboard")
+@login_required
 def dashboard():
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    user_email = session.get("user_email")
-    datos = obtener_datos_usuario(user_email)
-    return render_template("dashboard.html", usuario=datos)
+    user_correo = session.get("user_correo")
+    datos = obtener_datos_usuario(user_correo)
+    return render_template(
+        "dashboard.html",
+        usuario=datos,
+        user_role=session.get("user_role", "usuario")
+    )
+
+@app.route("/admin/usuarios")
+@admin_required
+def admin_usuarios():
+    """Lista y permite cambiar el rol de los usuarios."""
+    from services.auth_service import listar_usuarios
+
+    usuarios = listar_usuarios()
+    return render_template("admin_usuarios.html", usuarios=usuarios)
+
+@app.route("/admin/usuarios/rol", methods=["POST"])
+@admin_required
+def admin_cambiar_rol():
+    correo = request.form.get("correo")
+    nuevo_rol = request.form.get("rol")
+
+    if not correo or not nuevo_rol:
+        flash("Correo y rol son requeridos.", "danger")
+        return redirect("/admin/usuarios")
+
+    from services.auth_service import cambiar_rol_usuario
+    success, mensaje = cambiar_rol_usuario(correo, nuevo_rol)
+
+    flash(mensaje, "success" if success else "danger")
+    return redirect("/admin/usuarios")
+
 
 @app.route("/ventas/resumen")
 def ventas_dashboard():
     df, resumen = cargar_y_analizar_ventas()
     return render_template("ventas.html", df=df, resumen=resumen)
-
-# Reemplaza la ruta /analisis en app.py con esta versión corregida:
 
 @app.route("/analisis")
 def analisis():
@@ -210,19 +221,13 @@ def analisis():
         return redirect("/login")
     
     try:
-        # Opción 1: Usar la función simplificada
         from services.analisis_service import obtener_resumen_ventas
         resumen = obtener_resumen_ventas()
-        
-        # Opción 2: O usar la función completa
-        # from services.analisis_service import analizar_datos_con_spark
-        # _, resumen = analizar_datos_con_spark()
         
         if resumen is None:
             flash("No hay datos suficientes para el análisis.", "warning")
             return render_template("analisis.html", resumen=None)
         
-        # Debug: Imprimir en consola para verificar
         print("=" * 50)
         print("RESUMEN DE ANÁLISIS:")
         print(f"Total Productos: {resumen.get('total_productos')}")
@@ -263,6 +268,7 @@ def registrar_venta():
         tipo = request.form["tipo"]
         cantidad = int(request.form["cantidad"])
         total = PRECIOS[tipo] * cantidad
+        
         venta = {
             "cliente": cliente,
             "tipo": tipo,
@@ -270,38 +276,50 @@ def registrar_venta():
             "total": total,
             "fecha": datetime.now()
         }
-        collection.insert_one(venta)
+        
+        # CAMBIO: Usar la función guardar_venta en lugar de collection.insert_one
+        from services.ventas_service import guardar_venta
+        guardar_venta(venta)
+        
         return render_template("registrar_venta.html", precios=PRECIOS, mensaje="Venta registrada correctamente.")
     return render_template("registrar_venta.html", precios=PRECIOS)
 
 @app.route("/ventas/historial")
 def historial():
-    ventas = list(collection.find().sort("fecha", -1))
-    for v in ventas:
-        v["_id"] = str(v["_id"])
-        v["fecha"] = v["fecha"].strftime("%Y-%m-%d %H:%M:%S")
+    # CAMBIO: Usar cursor en lugar de collection.find()
+    if cursor:
+        cursor.execute(f"SELECT id, cliente, tipo, cantidad, total, fecha FROM {ventas_table} ORDER BY fecha DESC")
+        ventas = cursor.fetchall()
+        
+        # Formatear fechas para mostrar
+        for v in ventas:
+            if v.get("fecha"):
+                v["fecha"] = v["fecha"].strftime("%Y-%m-%d %H:%M:%S") if hasattr(v["fecha"], "strftime") else str(v["fecha"])
+    else:
+        ventas = []
+    
     return render_template("historial.html", ventas=ventas)
 
 @app.route("/perfil")
 def perfil():
     if not session.get("logged_in"):
         return redirect("/login")
-    user_email = session.get("user_email")
-    datos = obtener_datos_usuario(user_email)
+    user_correo = session.get("user_correo")
+    datos = obtener_datos_usuario(user_correo)
     return render_template("perfil.html", usuario=datos)
 
 @app.route("/perfil/actualizar", methods=["POST"])
 def actualizar_perfil():
     if not session.get("logged_in"):
         return redirect("/login")
-    user_email = session.get("user_email")
+    user_correo = session.get("user_correo")
     nombre = request.form.get("nombre")
-    nuevo_email = request.form.get("email")
+    nuevo_correo = request.form.get("correo")
     telefono = request.form.get("telefono")
-    success, mensaje = actualizar_datos_usuario(user_email, nombre, nuevo_email, telefono)
+    success, mensaje = actualizar_datos_usuario(user_correo, nombre, nuevo_correo, telefono)
     if success:
-        if user_email != nuevo_email:
-            session["user_email"] = nuevo_email
+        if user_correo != nuevo_correo:
+            session["user_correo"] = nuevo_correo
         flash(mensaje, "success")
     else:
         flash(mensaje, "danger")
@@ -311,12 +329,12 @@ def actualizar_perfil():
 def cambiar_foto_perfil():
     if not session.get("logged_in"):
         return redirect("/login")
-    user_email = session.get("user_email")
+    user_correo = session.get("user_correo")
     if 'avatar' not in request.files:
         flash("No se seleccionó ningún archivo.", "warning")
         return redirect("/perfil")
     file = request.files['avatar']
-    success, mensaje = guardar_avatar(user_email, file)
+    success, mensaje = guardar_avatar(user_correo, file)
     if success:
         flash(mensaje, "success")
     else:
@@ -327,14 +345,14 @@ def cambiar_foto_perfil():
 def cambiar_password():
     if not session.get("logged_in"):
         return redirect("/login")
-    user_email = session.get("user_email")
+    user_correo = session.get("user_correo")
     password_actual = request.form.get("password_actual")
     password_nueva = request.form.get("password_nueva")
     password_confirmar = request.form.get("password_confirmar")
     if password_nueva != password_confirmar:
         flash("Las contraseñas nuevas no coinciden.", "danger")
         return redirect("/perfil#security")
-    success, mensaje = cambiar_password_usuario(user_email, password_actual, password_nueva)
+    success, mensaje = cambiar_password_usuario(user_correo, password_actual, password_nueva)
     if success:
         flash(mensaje, "success")
     else:
@@ -345,14 +363,14 @@ def cambiar_password():
 def guardar_preferencias_usuario():
     if not session.get("logged_in"):
         return redirect("/login")
-    user_email = session.get("user_email")
+    user_correo = session.get("user_correo")
     tema = request.form.get("tema_preferido")
     idioma = request.form.get("idioma", "es")
     
     # Guardar idioma en sesión para cambio inmediato
     session['idioma'] = idioma
     
-    success, mensaje = guardar_preferencias(user_email, tema, idioma)
+    success, mensaje = guardar_preferencias(user_correo, tema, idioma)
     if success:
         flash(mensaje, "success")
     else:
@@ -379,9 +397,7 @@ def regresion_multiple():
     
     return render_template("regresion_multiple.html", modelo=modelo, prediccion=prediccion)
 
-
-# Agregar estas importaciones al inicio de app.py
-from flask import send_file
+# ======================== RESPALDOS ========================
 from services.backup_service import (
     generar_backup_completo,
     generar_backup_incremental,
@@ -390,35 +406,24 @@ from services.backup_service import (
     generar_pdf,
     generar_sql,
     obtener_info_respaldos
-    
 )
 
-# Agregar estas rutas a tu app.py
-
 @app.route("/respaldos")
+@admin_required
 def respaldos():
     """Página principal de respaldos"""
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    
-    # Obtener información de respaldos anteriores
     info = obtener_info_respaldos()
-    
     return render_template("respaldos.html", info=info)
 
-
 @app.route("/respaldos/generar", methods=["POST"])
+@admin_required
 def generar_respaldo():
     """Genera y descarga un respaldo según los parámetros"""
-    if not session.get("logged_in"):
-        return redirect("/login")
     
-    tipo_backup = request.form.get("tipo_backup", "completo")  # completo, incremental, diferencial
-    formato = request.form.get("formato", "excel")  # excel, pdf, sql
+    tipo_backup = request.form.get("tipo_backup", "completo")
+    formato = request.form.get("formato", "excel")
     
     try:
-        # Generar datos según el tipo de respaldo
         if tipo_backup == "completo":
             ventas, cantidad = generar_backup_completo()
         elif tipo_backup == "incremental":
@@ -429,7 +434,6 @@ def generar_respaldo():
             flash("Tipo de respaldo no válido.", "danger")
             return redirect("/respaldos")
         
-        # Generar archivo según el formato
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         if formato == "excel":
@@ -463,206 +467,14 @@ def generar_respaldo():
         flash(f"Error al generar respaldo: {str(e)}", "danger")
         return redirect("/respaldos")
 
-
 @app.route("/respaldos/info")
+@admin_required
 def info_respaldos():
     """Retorna información de respaldos en JSON (para AJAX)"""
-    if not session.get("logged_in"):
-        return {"error": "No autorizado"}, 401
-    
     info = obtener_info_respaldos()
     return info
-# Agregar estas importaciones al inicio de app.py
-# from services.auto_backup_service import (
-#     cargar_config,
-#     guardar_config,
-#     cargar_historial,
-#     obtener_proximos_respaldos,
-#     configurar_scheduler,
-#     obtener_estadisticas_historial
-# )
 
-# Agregar estas rutas a tu app.py
-
-# @app.route("/respaldos/configuracion")
-# def configuracion_respaldos():
-#     """Página de configuración de respaldos automáticos"""
-#     if not session.get("logged_in"):
-#         flash("Debes iniciar sesión para acceder.", "warning")
-#         return redirect("/login")
-    
-#     config = cargar_config()
-#     proximos = obtener_proximos_respaldos()
-#     historial = cargar_historial()[:10]  # Últimos 10
-#     estadisticas = obtener_estadisticas_historial()
-    
-#     # Formatear fechas del historial para mostrar
-#     for item in historial:
-#         try:
-#             fecha_dt = datetime.fromisoformat(item["fecha"])
-#             item["fecha"] = fecha_dt.strftime("%Y-%m-%d %H:%M")
-#         except:
-#             pass
-    
-#     return render_template(
-#         "configuracion_respaldos.html",
-#         config=config,
-#         proximos=proximos,
-#         historial=historial,
-#         estadisticas=estadisticas
-#     )
-
-
-# @app.route("/respaldos/configuracion/guardar", methods=["POST"])
-# def guardar_configuracion_respaldos():
-#     """Guarda la configuración de respaldos automáticos"""
-#     if not session.get("logged_in"):
-#         return redirect("/login")
-    
-#     try:
-#         config = {
-#             "activo": request.form.get("activo") == "on",
-#             "hora": request.form.get("hora", "02:00"),
-#             "frecuencia": request.form.get("frecuencia", "diario"),
-#             "dia_semana": request.form.get("dia_semana", "monday"),
-#             "dia_mes": int(request.form.get("dia_mes", 1)),
-#             "formato": request.form.get("formato", "todos"),
-#             "limpiar_antiguos": request.form.get("limpiar_antiguos") == "on",
-#             "dias_retener": int(request.form.get("dias_retener", 30))
-#         }
-        
-#         guardar_config(config)
-#         configurar_scheduler()  # Reconfigurar el scheduler
-        
-#         flash("Configuración guardada exitosamente.", "success")
-        
-#     except Exception as e:
-#         flash(f"Error al guardar configuración: {str(e)}", "danger")
-    
-#     return redirect("/respaldos/configuracion")
-
-
-@app.route("/respaldos/ejecutar-ahora", methods=["POST"])
-def ejecutar_respaldo_manual():
-    """Ejecuta un respaldo manual y lo descarga inmediatamente"""
-    if not session.get("logged_in"):
-        return redirect("/login")
-    
-    formato = request.form.get("formato", "excel")
-    
-    try:
-        from services.backup_service import (
-            generar_backup_completo,
-            generar_excel,
-            generar_pdf,
-            generar_sql
-        )
-        
-        # Generar datos
-        ventas, cantidad = generar_backup_completo()
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
-        archivos = []
-        
-        # Generar archivos según formato
-        if formato == "todos" or formato == "excel":
-            archivo_excel = generar_excel(ventas, "manual")
-            archivos.append({
-                "data": archivo_excel,
-                "mimetype": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                "filename": f"backup_manual_{timestamp}.xlsx"
-            })
-        
-        if formato == "todos" or formato == "pdf":
-            archivo_pdf = generar_pdf(ventas, "manual")
-            archivos.append({
-                "data": archivo_pdf,
-                "mimetype": "application/pdf",
-                "filename": f"backup_manual_{timestamp}.pdf"
-            })
-        
-        if formato == "todos" or formato == "sql":
-            archivo_sql = generar_sql(ventas, "manual")
-            archivos.append({
-                "data": archivo_sql,
-                "mimetype": "application/sql",
-                "filename": f"backup_manual_{timestamp}.sql"
-            })
-        
-        # Si es un solo archivo, descargarlo directamente
-        if len(archivos) == 1:
-            from services.auto_backup_service import agregar_historial
-            agregar_historial(formato, cantidad, "manual")
-            
-            flash(f"Respaldo manual generado: {cantidad} registros.", "success")
-            
-            return send_file(
-                archivos[0]["data"],
-                mimetype=archivos[0]["mimetype"],
-                as_attachment=True,
-                download_name=archivos[0]["filename"]
-            )
-        
-        # Si son múltiples archivos, crear un ZIP
-        else:
-            import zipfile
-            from io import BytesIO
-            
-            zip_buffer = BytesIO()
-            
-            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                for archivo in archivos:
-                    zip_file.writestr(archivo["filename"], archivo["data"].getvalue())
-            
-            zip_buffer.seek(0)
-            
-            from services.auto_backup_service import agregar_historial
-            agregar_historial("todos", cantidad, "manual")
-            
-            flash(f"Respaldo manual generado: {cantidad} registros en {len(archivos)} archivos.", "success")
-            
-            return send_file(
-                zip_buffer,
-                mimetype="application/zip",
-                as_attachment=True,
-                download_name=f"backup_manual_{timestamp}.zip"
-            )
-    
-    except Exception as e:
-        flash(f"Error al ejecutar respaldo manual: {str(e)}", "danger")
-        return redirect("/respaldos/configuracion")
-
-
-@app.route("/respaldos/estadisticas")
-def estadisticas_respaldos():
-    """Retorna estadísticas de respaldos en JSON"""
-    if not session.get("logged_in"):
-        return {"error": "No autorizado"}, 401
-    
-    estadisticas = obtener_estadisticas_historial()
-    return estadisticas
-@app.route("/respaldos/centro-descargas")
-def centro_descargas():
-    """Centro de descargas - Muestra archivos listos para descargar"""
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    
-    archivos = listar_archivos_guardados()
-    config = cargar_config()
-    
-    # Contar archivos nuevos (menos de 1 hora)
-    pendientes = sum(1 for a in archivos if a.get("es_nuevo", False))
-    
-    return render_template(
-        "centro_descargas.html",
-        archivos=archivos,
-        pendientes=pendientes,
-        dias_retener=config.get("dias_retener", 30)
-    )
-
-
-# Agregar estas importaciones al inicio de app.py
+# ======================== CONFIGURACIÓN DE RESPALDOS AUTOMÁTICOS ========================
 from services.auto_backup_service import (
     cargar_config,
     guardar_config,
@@ -673,17 +485,13 @@ from services.auto_backup_service import (
     listar_archivos_guardados,
     eliminar_archivo,
     obtener_estadisticas_storage,
-    ejecutar_respaldo_programado
+    ejecutar_respaldo_programado,
+    BACKUPS_STORAGE_DIR
 )
 
-# Agregar estas rutas a tu app.py
-
 @app.route("/respaldos/configuracion")
+@admin_required
 def configuracion_respaldos():
-    if not session.get("logged_in"):
-        flash("Debes iniciar sesión para acceder.", "warning")
-        return redirect("/login")
-    
     config = cargar_config()
     proximos = obtener_proximos_respaldos()
     historial = cargar_historial()[:10]
@@ -708,13 +516,10 @@ def configuracion_respaldos():
         stats_storage=stats_storage
     )
 
-
-
 @app.route("/respaldos/configuracion/guardar", methods=["POST"])
+@admin_required
 def guardar_configuracion_respaldos():
     """Guarda la configuración de respaldos automáticos"""
-    if not session.get("logged_in"):
-        return redirect("/login")
     
     try:
         config = {
@@ -729,7 +534,7 @@ def guardar_configuracion_respaldos():
         }
         
         guardar_config(config)
-        configurar_scheduler()  # Reconfigurar el scheduler
+        configurar_scheduler()
         
         flash("✅ Configuración guardada exitosamente. Los respaldos se generarán automáticamente.", "success")
         
@@ -737,7 +542,6 @@ def guardar_configuracion_respaldos():
         flash(f"Error al guardar configuración: {str(e)}", "danger")
     
     return redirect("/respaldos/configuracion")
-
 
 @app.route("/respaldos/ejecutar-ahora", methods=["POST"])
 def ejecutar_respaldo_manual_ahora():
@@ -756,15 +560,12 @@ def ejecutar_respaldo_manual_ahora():
             generar_pdf,
             generar_sql
         )
-        from services.auto_backup_service import BACKUPS_STORAGE_DIR, agregar_historial
         
-        # Generar datos
         ventas, cantidad = generar_backup_completo()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         archivos_generados = []
         
-        # Generar y guardar archivos según formato
         if formato == "todos" or formato == "excel":
             archivo_excel = generar_excel(ventas, "manual")
             filename = f"backup_manual_{timestamp}.xlsx"
@@ -795,18 +596,45 @@ def ejecutar_respaldo_manual_ahora():
             
             archivos_generados.append(filename)
         
-        # Registrar en historial
-        agregar_historial(formato, cantidad, archivos_generados, "manual")
+        from services.auto_backup_service import agregar_historial
+
+        # Guardamos en el historial de respaldos (cantidad_registros debe ser int)
+        tablas_respaldadas = {nombre: len(datos) for nombre, datos in ventas.items()} if isinstance(ventas, dict) else {}
+        agregar_historial(
+            tipo_respaldo="manual",
+            formato=formato,
+            cantidad_registros=cantidad,
+            tablas_respaldadas=tablas_respaldadas,
+            archivos_generados=archivos_generados,
+            estado="manual"
+        )
         
         flash(f"✅ Respaldo manual ejecutado: {cantidad} registros, {len(archivos_generados)} archivo(s) generado(s).", "success")
         
-        # Redirigir al centro de descargas
         return redirect("/respaldos/centro-descargas")
         
     except Exception as e:
         flash(f"❌ Error al ejecutar respaldo manual: {str(e)}", "danger")
         return redirect("/respaldos/configuracion")
 
+@app.route("/respaldos/centro-descargas")
+def centro_descargas():
+    """Centro de descargas - Muestra archivos listos para descargar"""
+    if not session.get("logged_in"):
+        flash("Debes iniciar sesión para acceder.", "warning")
+        return redirect("/login")
+    
+    archivos = listar_archivos_guardados()
+    config = cargar_config()
+    
+    pendientes = sum(1 for a in archivos if a.get("es_nuevo", False))
+    
+    return render_template(
+        "centro_descargas.html",
+        archivos=archivos,
+        pendientes=pendientes,
+        dias_retener=config.get("dias_retener", 30)
+    )
 
 @app.route("/respaldos/archivos")
 def ver_archivos_respaldos():
@@ -824,7 +652,6 @@ def ver_archivos_respaldos():
         stats=stats
     )
 
-
 @app.route("/respaldos/descargar/<filename>")
 def descargar_archivo_respaldo(filename):
     """Descarga un archivo de respaldo específico"""
@@ -832,16 +659,12 @@ def descargar_archivo_respaldo(filename):
         return redirect("/login")
     
     try:
-        from services.auto_backup_service import BACKUPS_STORAGE_DIR
-        
         filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
         
-        # Validar que el archivo existe y está en la carpeta correcta
         if not os.path.exists(filepath):
             flash("Archivo no encontrado.", "danger")
             return redirect("/respaldos/archivos")
         
-        # Determinar mimetype según extensión
         if filename.endswith('.xlsx'):
             mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         elif filename.endswith('.pdf'):
@@ -862,7 +685,6 @@ def descargar_archivo_respaldo(filename):
         flash(f"Error al descargar archivo: {str(e)}", "danger")
         return redirect("/respaldos/archivos")
 
-
 @app.route("/respaldos/eliminar/<filename>", methods=["POST"])
 def eliminar_archivo_respaldo(filename):
     """Elimina un archivo de respaldo específico"""
@@ -878,7 +700,6 @@ def eliminar_archivo_respaldo(filename):
     
     return redirect("/respaldos/archivos")
 
-
 @app.route("/respaldos/limpiar-antiguos", methods=["POST"])
 def limpiar_archivos_antiguos():
     """Limpia archivos antiguos manualmente"""
@@ -886,11 +707,10 @@ def limpiar_archivos_antiguos():
         return redirect("/login")
     
     try:
-        from services.auto_backup_service import limpiar_backups_antiguos
-        
         config = cargar_config()
         dias = config.get("dias_retener", 30)
         
+        from services.auto_backup_service import limpiar_backups_antiguos
         limpiar_backups_antiguos(dias)
         
         flash(f"✅ Limpieza completada. Archivos más antiguos que {dias} días eliminados.", "success")
@@ -900,10 +720,9 @@ def limpiar_archivos_antiguos():
     
     return redirect("/respaldos/archivos")
 
-
 @app.route("/respaldos/forzar-ejecucion", methods=["POST"])
 def forzar_ejecucion_respaldo():
-    """Fuerza la ejecución del respaldo automático inmediatamente (simula el scheduler)"""
+    """Fuerza la ejecución del respaldo automático inmediatamente"""
     if not session.get("logged_in"):
         return redirect("/login")
     
@@ -914,27 +733,44 @@ def forzar_ejecucion_respaldo():
     except Exception as e:
         flash(f"❌ Error al forzar ejecución: {str(e)}", "danger")
         return redirect("/respaldos/configuracion")
-    
-# ======================== REGRESIÓN POLINÓMICA ========================
-# @app.route("/regresion-polinomica", methods=["GET", "POST"])
-# def regresion_polinomica():
-#     if not session.get("logged_in"):
-#         return redirect("/login")
-    
-#     grado = 2  # grado por defecto
-    
-#     if request.method == "POST":
-#         try:
-#             grado = int(request.form.get("grado", 2))
-#             grado = max(1, min(grado, 10))  # limitar entre 1 y 10
-#         except:
-#             grado = 2
-    
-#     modelo = entrenar_modelo_polinomico(grado)
-    
-#     return render_template("regresion_polinomica.html", modelo=modelo, grado=grado)
-# ========== RUTAS API PARA CONFIGURACIÓN DE RESPALDOS ==========
 
+@app.route('/respaldos/ejecutar-prueba', methods=['POST'])
+def ejecutar_prueba_respaldo():
+    """Ejecuta un respaldo de prueba y (si está activo) envía el correo."""
+    if not session.get("logged_in"):
+        return jsonify({"success": False, "message": "No autorizado"}), 401
+
+    try:
+        from services.auto_backup_service import ejecutar_respaldo_prueba
+        from services.email_service import cargar_config_email, enviar_email_respaldo
+
+        success, message, archivos_paths, total_registros, tablas_respaldadas = ejecutar_respaldo_prueba()
+
+        if not success:
+            return jsonify({"success": False, "message": message})
+
+        # Envío de correo si está configurado
+        email_config = cargar_config_email()
+        if email_config.get("activo", False):
+            try:
+                sent, mail_message = enviar_email_respaldo(
+                    archivos_paths,
+                    "prueba",
+                    total_registros,
+                    tablas_respaldadas
+                )
+                if sent:
+                    message += " | Correo enviado correctamente."
+                else:
+                    message += f" | Error al enviar correo: {mail_message}"
+            except Exception as e:
+                message += f" | Error al enviar correo: {str(e)}"
+
+        return jsonify({"success": True, "message": message})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error inesperado: {str(e)}"}), 500
+
+# ======================== API PARA CONFIGURACIÓN DE RESPALDOS ========================
 @app.route('/respaldos/api/estadisticas', methods=['GET'])
 def api_estadisticas():
     """API para obtener estadísticas en tiempo real"""
@@ -950,7 +786,6 @@ def api_estadisticas():
         "tamaño_total_mb": estadisticas_storage.get("tamaño_total_mb", 0)
     })
 
-
 @app.route('/respaldos/api/proximos-respaldos', methods=['GET'])
 def api_proximos_respaldos():
     """API para obtener próximos respaldos programados"""
@@ -959,16 +794,13 @@ def api_proximos_respaldos():
     proximos = obtener_proximos_respaldos()
     return jsonify(proximos)
 
-
 @app.route('/respaldos/api/historial-reciente', methods=['GET'])
 def api_historial_reciente():
     """API para obtener historial reciente"""
     from services.auto_backup_service import cargar_historial
     
     historial = cargar_historial()
-    # Retornar solo los últimos 10
     return jsonify(historial[:10])
-
 
 @app.route('/respaldos/api/archivos-recientes', methods=['GET'])
 def api_archivos_recientes():
@@ -976,178 +808,117 @@ def api_archivos_recientes():
     from services.auto_backup_service import listar_archivos_guardados
     
     archivos = listar_archivos_guardados()
-    # Retornar solo los primeros 5
     return jsonify(archivos[:5])
 
-
 @app.route('/respaldos/api/config-email', methods=['GET'])
-def get_config_email():
-    """Obtiene la configuración de email (sin mostrar credenciales)"""
+def api_config_email():
+    """API para obtener la configuración de envío de correos"""
+    if not session.get("logged_in"):
+        return jsonify({"error": "No autorizado"}), 401
+
     from services.email_service import cargar_config_email
-    
     config = cargar_config_email()
-    
-    # No enviar credenciales sensibles al frontend
     return jsonify({
         "activo": config.get("activo", False),
         "emails_destino": config.get("emails_destino", []),
         "incluir_adjuntos": config.get("incluir_adjuntos", True)
     })
 
-
 @app.route('/respaldos/api/config-email/guardar', methods=['POST'])
-def guardar_config_email():
-    """Guarda la configuración de email"""
-    from services.email_service import guardar_config_email, cargar_config_email
-    
-    try:
-        data = request.get_json()
-        
-        # Cargar config actual para mantener credenciales
-        config = cargar_config_email()
-        
-        # Actualizar solo los campos permitidos
-        config["activo"] = data.get("activo", False)
-        config["emails_destino"] = data.get("emails_destino", [])
-        config["incluir_adjuntos"] = data.get("incluir_adjuntos", True)
-        
-        # Guardar
-        guardar_config_email(config)
-        
-        return jsonify({
-            "success": True,
-            "message": "Configuración de correo guardada exitosamente"
-        })
-    
-    except Exception as e:
-        import traceback
-        print(f"Error guardando config email: {traceback.format_exc()}")
-        return jsonify({
-            "success": False,
-            "message": f"Error al guardar configuración: {str(e)}"
-        }), 500
+def api_guardar_config_email():
+    """API para guardar la configuración de envío de correos"""
+    if not session.get("logged_in"):
+        return jsonify({"error": "No autorizado"}), 401
 
+    data = request.get_json(silent=True) or {}
+    activo = bool(data.get("activo", False))
+    emails_destino = data.get("emails_destino") or []
+    incluir_adjuntos = bool(data.get("incluir_adjuntos", True))
+
+    if activo and (not isinstance(emails_destino, list) or len(emails_destino) == 0):
+        return jsonify({"success": False, "message": "Debes configurar al menos un correo de destino."}), 400
+
+    try:
+        from services.email_service import cargar_config_email, guardar_config_email, validar_configuracion_email
+
+        config = cargar_config_email()
+        config.update({
+            "activo": activo,
+            "emails_destino": emails_destino,
+            "incluir_adjuntos": incluir_adjuntos
+        })
+        guardar_config_email(config)
+
+        valido, mensaje = validar_configuracion_email()
+        return jsonify({"success": True, "message": mensaje})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error al guardar configuración: {str(e)}"}), 500
 
 @app.route('/respaldos/api/email/prueba', methods=['POST'])
-def enviar_prueba_email():
-    """Envía un correo de prueba"""
-    from services.email_service import enviar_correo_prueba, cargar_config_email, guardar_config_email
-    
+def api_email_prueba():
+    """API para enviar un correo de prueba"""
+    if not session.get("logged_in"):
+        return jsonify({"error": "No autorizado"}), 401
+
+    data = request.get_json(silent=True) or {}
+    emails_destino = data.get("emails_destino") or []
+
+    if not isinstance(emails_destino, list) or len(emails_destino) == 0:
+        return jsonify({"success": False, "message": "Debes agregar al menos un correo de destino para la prueba."}), 400
+
     try:
-        data = request.get_json()
-        emails_destino = data.get("emails_destino", [])
-        
-        if not emails_destino:
-            return jsonify({
-                "success": False,
-                "message": "No se especificaron correos de destino"
-            }), 400
-        
-        # Guardar temporalmente los emails para la prueba
+        from services.email_service import cargar_config_email, guardar_config_email, enviar_correo_prueba
+
         config = cargar_config_email()
-        
-        # Validar que las credenciales estén configuradas
-        if not config.get("email_from") or not config.get("email_password"):
-            return jsonify({
-                "success": False,
-                "message": "Las credenciales de correo no están configuradas correctamente en el servidor"
-            }), 500
-        
-        config["emails_destino"] = emails_destino
         config["activo"] = True
+        config["emails_destino"] = emails_destino
         guardar_config_email(config)
-        
-        # Enviar correo de prueba
-        success, mensaje = enviar_correo_prueba()
-        
-        if success:
-            return jsonify({
-                "success": True,
-                "message": mensaje
-            })
-        else:
-            return jsonify({
-                "success": False,
-                "message": f"Error: {mensaje}"
-            }), 500
-    
+
+        success, message = enviar_correo_prueba()
+        return jsonify({"success": success, "message": message})
     except Exception as e:
-        import traceback
-        error_detallado = traceback.format_exc()
-        print(f"Error detallado en prueba de email:\n{error_detallado}")
-        
-        return jsonify({
-            "success": False,
-            "message": f"Error al enviar correo: {str(e)}"
-        }), 500
+        return jsonify({"success": False, "message": f"Error al enviar correo: {str(e)}"}), 500
 
-
-@app.route('/respaldos/ejecutar-prueba', methods=['POST'])
-def ejecutar_prueba_respaldo():
-    """Ejecuta un respaldo de prueba y lo envía por correo si está configurado"""
-    from services.auto_backup_service import ejecutar_respaldo_prueba
-    
-    try:
-        success, mensaje = ejecutar_respaldo_prueba()
-        
-        return jsonify({
-            "success": success,
-            "message": mensaje
-        })
-    
-    except Exception as e:
-        import traceback
-        print(f"Error en prueba de respaldo: {traceback.format_exc()}")
-        return jsonify({
-            "success": False,
-            "message": f"Error: {str(e)}"
-        }), 500
-
-# ========== RUTAS DE RECUPERACIÓN DE CONTRASEÑA (SEGURAS) ==========
-
+# ======================== RECUPERACIÓN DE CONTRASEÑA ========================
 @app.route("/recuperar-password", methods=["POST"])
 def recuperar_password():
     """Solicita un código de recuperación"""
     from services.auth_service import crear_codigo_recuperacion
     from services.email_service import enviar_codigo_recuperacion
     
-    email = request.form.get("email", "").strip()
+    # Aceptamos tanto 'correo' como 'email' desde el formulario
+    correo = request.form.get("correo", "").strip() or request.form.get("email", "").strip()
     
-    if not email:
+    if not correo:
         flash("Por favor ingresa tu correo electrónico.", "danger")
         return redirect("/login")
     
-    # Crear código
-    success, codigo, mensaje = crear_codigo_recuperacion(email)
+    success, codigo, mensaje = crear_codigo_recuperacion(correo)
     
     if not success:
         flash(mensaje, "danger")
         return redirect("/login")
     
-    # Enviar código por correo
-    enviado, msg_email = enviar_codigo_recuperacion(email, codigo)
+    enviado, msg_correo = enviar_codigo_recuperacion(correo, codigo)
     
     if enviado:
-        # ✅ GUARDAR EMAIL EN SESIÓN (NO EN URL)
-        session['recovery_email'] = email
+        session['recovery_correo'] = correo
         session['recovery_step'] = 2
         
         flash(f"✅ Código enviado a tu correo. Revisa tu bandeja de entrada.", "success")
-        return redirect("/login#recovery")  # Sin parámetros sensibles
+        return redirect("/login#recovery")
     else:
-        flash(f"❌ Error al enviar el correo: {msg_email}", "danger")
+        flash(f"❌ Error al enviar el correo: {msg_correo}", "danger")
         return redirect("/login")
-
 
 @app.route("/restablecer-password", methods=["POST"])
 def restablecer_password_route():
     """Restablece la contraseña con el código"""
     from services.auth_service import restablecer_password
     
-    # ✅ OBTENER EMAIL DE SESIÓN (NO DE FORMULARIO)
-    email = session.get('recovery_email')
+    correo = session.get('recovery_correo')
     
-    if not email:
+    if not correo:
         flash("⚠️ Sesión expirada. Solicita un nuevo código.", "warning")
         return redirect("/login")
     
@@ -1155,7 +926,6 @@ def restablecer_password_route():
     nueva_password = request.form.get("nueva_password", "")
     confirmar_password = request.form.get("confirmar_password", "")
     
-    # Validaciones
     if not all([codigo, nueva_password, confirmar_password]):
         flash("Todos los campos son obligatorios.", "danger")
         return redirect("/login#recovery")
@@ -1168,12 +938,10 @@ def restablecer_password_route():
         flash("La contraseña debe tener al menos 6 caracteres.", "danger")
         return redirect("/login#recovery")
     
-    # Restablecer contraseña
-    success, mensaje = restablecer_password(email, codigo, nueva_password)
+    success, mensaje = restablecer_password(correo, codigo, nueva_password)
     
     if success:
-        # ✅ LIMPIAR SESIÓN DE RECUPERACIÓN
-        session.pop('recovery_email', None)
+        session.pop('recovery_correo', None)
         session.pop('recovery_step', None)
         
         flash("✅ Contraseña restablecida exitosamente. Ahora puedes iniciar sesión.", "success")
@@ -1182,17 +950,25 @@ def restablecer_password_route():
         flash(f"❌ {mensaje}", "danger")
         return redirect("/login#recovery")
 
-
-# RUTA PARA CANCELAR RECUPERACIÓN (OPCIONAL)
 @app.route("/cancelar-recuperacion")
 def cancelar_recuperacion():
     """Cancela el proceso de recuperación y limpia la sesión"""
-    session.pop('recovery_email', None)
+    session.pop('recovery_correo', None)
     session.pop('recovery_step', None)
     flash("Proceso de recuperación cancelado.", "info")
     return redirect("/login")
 
-# ========== RUTAS DE RESTAURACIÓN DE RESPALDOS ==========
+# ======================== RESTAURACIÓN DE RESPALDOS ========================
+from services.restore_service import (
+    cargar_historial_restauraciones, 
+    obtener_estadisticas_restauraciones,
+    validar_archivo_restauracion,
+    restaurar_desde_sql,
+    restaurar_desde_excel,
+    restaurar_desde_json,
+    guardar_historial_restauraciones,
+    agregar_historial_restauracion
+)
 
 @app.route("/restaurar")
 def restaurar_respaldos():
@@ -1201,17 +977,13 @@ def restaurar_respaldos():
         flash("Debes iniciar sesión para acceder.", "warning")
         return redirect("/login")
     
-    # Solo admin puede restaurar
     if session.get("user_role") != "admin":
         flash("No tienes permisos para acceder a esta sección.", "danger")
         return redirect("/dashboard")
     
-    from services.restore_service import cargar_historial_restauraciones, obtener_estadisticas_restauraciones
-    
-    historial = cargar_historial_restauraciones()[:10]  # Últimas 10
+    historial = cargar_historial_restauraciones()[:10]
     estadisticas = obtener_estadisticas_restauraciones()
     
-    # Formatear fechas
     for item in historial:
         try:
             fecha_dt = datetime.fromisoformat(item["fecha"])
@@ -1225,7 +997,6 @@ def restaurar_respaldos():
         estadisticas=estadisticas
     )
 
-
 @app.route("/restaurar/subir", methods=["POST"])
 def subir_archivo_restauracion():
     """Procesa el archivo de restauración subido"""
@@ -1236,9 +1007,6 @@ def subir_archivo_restauracion():
         flash("No tienes permisos para realizar esta acción.", "danger")
         return redirect("/dashboard")
     
-    from services.restore_service import validar_archivo_restauracion, restaurar_desde_sql, restaurar_desde_excel, restaurar_desde_json
-    
-    # Verificar que se haya subido un archivo
     if 'archivo' not in request.files:
         flash("❌ No se seleccionó ningún archivo.", "danger")
         return redirect("/restaurar")
@@ -1249,7 +1017,6 @@ def subir_archivo_restauracion():
         flash("❌ No se seleccionó ningún archivo.", "danger")
         return redirect("/restaurar")
     
-    # Validar archivo
     valido, extension, mensaje = validar_archivo_restauracion(file.filename)
     
     if not valido:
@@ -1257,10 +1024,8 @@ def subir_archivo_restauracion():
         return redirect("/restaurar")
     
     try:
-        # Leer contenido del archivo
         file_content = file.read()
         
-        # Procesar según extensión
         if extension == '.sql':
             success, mensaje, stats = restaurar_desde_sql(file_content)
         elif extension == '.xlsx':
@@ -1272,13 +1037,20 @@ def subir_archivo_restauracion():
             return redirect("/restaurar")
         
         if success:
+            tablas = stats.get("tablas", [])
+            total_registros = stats.get("total_registros", 0)
+            agregar_historial_restauracion(extension[1:], tablas, total_registros, "exitoso")
+
             flash(f"✅ {mensaje}", "success")
-            
-            # Mostrar detalles
+            if tablas:
+                flash(f"📂 Tablas restauradas: {', '.join(tablas)}", "info")
+            flash(f"📊 Registros restaurados: {total_registros}", "info")
+
             if stats.get("detalles"):
                 detalles = "<br>".join([f"📂 {col}: {cant} registros" for col, cant in stats["detalles"].items()])
                 flash(f"Detalles de la restauración:<br>{detalles}", "info")
         else:
+            agregar_historial_restauracion(extension[1:], [], 0, "fallido", str(mensaje))
             flash(f"❌ {mensaje}", "danger")
     
     except Exception as e:
@@ -1288,17 +1060,15 @@ def subir_archivo_restauracion():
     
     return redirect("/restaurar")
 
-
 @app.route("/restaurar/historial")
 def historial_restauraciones():
     """Retorna el historial completo de restauraciones en JSON"""
     if not session.get("logged_in"):
         return {"error": "No autorizado"}, 401
     
-    from services.restore_service import cargar_historial_restauraciones
-    
     historial = cargar_historial_restauraciones()
     return jsonify(historial)
+
 @app.route("/restaurar/limpiar-historial", methods=["POST"])
 def limpiar_historial_restauraciones():
     """Limpia completamente el historial de restauraciones"""
@@ -1309,11 +1079,7 @@ def limpiar_historial_restauraciones():
         return jsonify({"success": False, "message": "No tienes permisos"}), 403
     
     try:
-        from services.restore_service import guardar_historial_restauraciones
-        
-        # Limpiar historial (guardar lista vacía)
         guardar_historial_restauraciones([])
-        
         return jsonify({
             "success": True,
             "message": "Historial limpiado exitosamente"
@@ -1324,6 +1090,6 @@ def limpiar_historial_restauraciones():
             "success": False,
             "message": f"Error al limpiar historial: {str(e)}"
         }), 500
-        
+
 if __name__ == "__main__":
     app.run(debug=True, port=5001)

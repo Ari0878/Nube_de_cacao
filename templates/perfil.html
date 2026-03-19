@@ -158,8 +158,8 @@
                 </div>
                 <div class="text-white">
                     <h2 class="fw-bold mb-1">{{ usuario.nombre if usuario else 'Usuario' }}</h2>
-                    <p class="opacity-75 mb-0"><i class="fa-solid fa-envelope me-2"></i>{{ usuario.correo if usuario
-                        else '' }}</p>
+                    <p class="opacity-75 mb-0"><i class="fa-solid fa-envelope me-2"></i>{{ usuario.correo if usuario else '' }}</p>
+                    <p class="opacity-75 mb-0"><i class="fa-solid fa-user-shield me-2"></i>{{ usuario.rol|capitalize if usuario else '' }}</p>
                 </div>
             </div>
 

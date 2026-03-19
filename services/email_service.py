@@ -36,13 +36,25 @@ def cargar_config_email():
 
 def guardar_config_email(config):
     """Guarda la configuración de email"""
-    config["email_from"] = "al222310566@gmail.com"
-    config["email_password"] = "bzjt agkb ebeh qfkb"
-    config["smtp_server"] = "smtp.gmail.com"
-    config["smtp_port"] = 587
-    
+    # Tomamos la configuración existente y la actualizamos con los valores nuevos
+    base = cargar_config_email()
+    base.update(config or {})
+
+    # Si la contraseña fue copiada/pegada con espacios (error común), los removemos
+    if base.get("email_password"):
+        base["email_password"] = base["email_password"].replace(" ", "")
+
+    # Valores por defecto seguros/esperados
+    base.setdefault("smtp_server", "smtp.gmail.com")
+    base.setdefault("smtp_port", 587)
+    base.setdefault("email_from", "al222310566@gmail.com")
+    base.setdefault("email_password", "bzjtagkbebehqfkb")
+    base.setdefault("emails_destino", [])
+    base.setdefault("incluir_adjuntos", True)
+    base.setdefault("max_size_mb", 25)
+
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-        json.dump(config, f, ensure_ascii=False, indent=2)
+        json.dump(base, f, ensure_ascii=False, indent=2)
 
 
 def validar_configuracion_email():

@@ -1,25 +1,30 @@
+# services/regresion_service.py
 import numpy as np
-from db import collection
+import db
+from datetime import datetime
 
 def obtener_datos_ventas():
-    """Obtiene datos de ventas de la base de datos para regresión - OPTIMIZADO"""
+    """Obtiene datos de ventas de MySQL para regresión"""
     try:
-        # Limitar a las últimas 500 ventas para velocidad
-        ventas = list(collection.find(
-            {},
-            {'_id': 0, 'cantidad': 1, 'total': 1}
-        ).limit(500))
+        cursor = db.get_cursor()
+        if cursor is None:
+            return None, None
+        
+        # Obtener últimas 500 ventas
+        cursor.execute("""
+            SELECT cantidad, total FROM ventas 
+            WHERE cantidad > 0 AND total > 0 
+            ORDER BY fecha DESC 
+            LIMIT 500
+        """)
+        
+        ventas = cursor.fetchall()
         
         if not ventas or len(ventas) < 2:
             return None, None
         
-        # Usar comprensión de listas para mayor eficiencia
-        datos = [(v.get('cantidad', 0), v.get('total', 0)) 
-                 for v in ventas 
-                 if v.get('cantidad', 0) > 0 and v.get('total', 0) > 0]
-        
-        if len(datos) < 2:
-            return None, None
+        # Convertir a arrays
+        datos = [(v.get('cantidad', 0), v.get('total', 0)) for v in ventas]
         
         X = np.array([d[0] for d in datos], dtype=np.float32)
         y = np.array([d[1] for d in datos], dtype=np.float32)
@@ -29,20 +34,20 @@ def obtener_datos_ventas():
         print(f"Error obtener_datos_ventas: {e}")
         return None, None
 
+
 def entrenar_modelo_regresion():
-    """Entrena un modelo de regresión lineal simple - OPTIMIZADO"""
+    """Entrena un modelo de regresión lineal simple"""
     try:
         X, y = obtener_datos_ventas()
         
         if X is None or len(X) < 2:
             return None
         
-        # Usar operaciones vectorizadas de numpy para mayor velocidad
         X_flat = X.flatten()
         x_mean = X_flat.mean()
         y_mean = y.mean()
         
-        # Calcular pendiente y intercepto
+        # Calcular pendiente e intercepto
         numerador = ((X_flat - x_mean) * (y - y_mean)).sum()
         denominador = ((X_flat - x_mean) ** 2).sum()
         
@@ -64,7 +69,7 @@ def entrenar_modelo_regresion():
         ss_tot = ((y - y_mean) ** 2).sum()
         r2 = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
         
-        # Limitar a 100 puntos para el gráfico
+        # Limitar puntos para gráfico
         num_puntos = min(100, len(X_flat))
         indices = np.linspace(0, len(X_flat)-1, num_puntos, dtype=int)
         
@@ -82,6 +87,7 @@ def entrenar_modelo_regresion():
     except Exception as e:
         print(f"Error entrenar_modelo_regresion: {e}")
         return None
+
 
 def predecir_total(cantidad, modelo):
     """Hace una predicción basada en el modelo entrenado"""

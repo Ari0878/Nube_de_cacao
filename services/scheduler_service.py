@@ -4,7 +4,7 @@ import schedule
 import time
 import threading
 from datetime import datetime
-from db import db
+from db import cursor, conn
 
 # Configuración de carpeta de respaldos
 BACKUP_FOLDER = "backups_automaticos"
@@ -17,50 +17,57 @@ if not os.path.exists(BACKUP_FOLDER):
 def realizar_respaldo_automatico(formato="todos"):
     """
     Realiza un respaldo automático en el formato especificado.
-    Usa las funciones avanzadas que permiten elegir tipo de respaldo.
-    
-    Args:
-        formato (str): "excel", "pdf", "sql" o "todos"
     """
     try:
-        # Importar las funciones de respaldo avanzado
-        from services.backup_avanzado_service import (
-            exportar_excel_completo,
-            exportar_pdf_completo,
-            exportar_sql_completo
+        # Importar funciones de respaldo
+        from services.backup_service import (
+            generar_backup_completo,
+            generar_excel,
+            generar_pdf,
+            generar_sql
         )
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
-        # Por defecto, los respaldos automáticos son COMPLETOS
         tipo_respaldo = "completo"
         
+        # Obtener datos
+        tablas, total_registros = generar_backup_completo()
+        
+        if not tablas:
+            print("❌ No hay datos para respaldar")
+            return
+        
+        archivos_generados = []
+        
         if formato in ["excel", "todos"]:
-            archivo_excel = exportar_excel_completo(tipo_respaldo)
+            archivo_excel = generar_excel(tablas, tipo_respaldo)
             if archivo_excel:
                 ruta_excel = os.path.join(BACKUP_FOLDER, f"auto_backup_{timestamp}.xlsx")
                 with open(ruta_excel, 'wb') as f:
-                    f.write(archivo_excel.read())
+                    f.write(archivo_excel.getvalue())
+                archivos_generados.append(ruta_excel)
                 print(f"✅ Respaldo Excel creado: {ruta_excel}")
         
         if formato in ["pdf", "todos"]:
-            archivo_pdf = exportar_pdf_completo(tipo_respaldo)
+            archivo_pdf = generar_pdf(tablas, tipo_respaldo)
             if archivo_pdf:
                 ruta_pdf = os.path.join(BACKUP_FOLDER, f"auto_backup_{timestamp}.pdf")
                 with open(ruta_pdf, 'wb') as f:
-                    f.write(archivo_pdf.read())
+                    f.write(archivo_pdf.getvalue())
+                archivos_generados.append(ruta_pdf)
                 print(f"✅ Respaldo PDF creado: {ruta_pdf}")
         
         if formato in ["sql", "todos"]:
-            archivo_sql = exportar_sql_completo(tipo_respaldo)
+            archivo_sql = generar_sql(tablas, tipo_respaldo)
             if archivo_sql:
                 ruta_sql = os.path.join(BACKUP_FOLDER, f"auto_backup_{timestamp}.sql")
                 with open(ruta_sql, 'wb') as f:
-                    f.write(archivo_sql.read())
+                    f.write(archivo_sql.getvalue())
+                archivos_generados.append(ruta_sql)
                 print(f"✅ Respaldo SQL creado: {ruta_sql}")
         
-        # Guardar registro en MongoDB
-        registrar_respaldo_en_db(timestamp, formato)
+        # Registrar respaldo en MySQL
+        registrar_respaldo_en_db(timestamp, formato, len(archivos_generados), total_registros)
         
     except Exception as e:
         print(f"❌ Error al realizar respaldo automático: {e}")
@@ -68,17 +75,36 @@ def realizar_respaldo_automatico(formato="todos"):
         traceback.print_exc()
 
 
-def registrar_respaldo_en_db(timestamp, formato):
-    """Registra el respaldo realizado en la base de datos"""
+def registrar_respaldo_en_db(timestamp, formato, num_archivos, total_registros):
+    """Registra el respaldo realizado en MySQL"""
     try:
-        if db is not None:
-            respaldos_col = db["respaldos_automaticos"]
-            respaldos_col.insert_one({
-                "fecha": datetime.now(),
-                "timestamp": timestamp,
-                "formato": formato,
-                "tipo": "automatico"
-            })
+        if cursor is None or conn is None:
+            print("⚠️ No hay conexión a MySQL para registrar respaldo")
+            return
+        
+        # Crear tabla si no existe
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS respaldos_automaticos (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                fecha DATETIME,
+                timestamp VARCHAR(50),
+                formato VARCHAR(50),
+                num_archivos INT,
+                total_registros INT,
+                tipo VARCHAR(50)
+            )
+        """)
+        
+        query = """
+            INSERT INTO respaldos_automaticos 
+            (fecha, timestamp, formato, num_archivos, total_registros, tipo)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        valores = (datetime.now(), timestamp, formato, num_archivos, total_registros, "automatico")
+        
+        cursor.execute(query, valores)
+        conn.commit()
+        
     except Exception as e:
         print(f"Error al registrar respaldo en DB: {e}")
 
@@ -86,9 +112,6 @@ def registrar_respaldo_en_db(timestamp, formato):
 def limpiar_respaldos_antiguos(dias=30):
     """
     Elimina respaldos automáticos con más de X días de antigüedad.
-    
-    Args:
-        dias (int): Número de días a mantener
     """
     try:
         ahora = time.time()
@@ -112,20 +135,7 @@ def limpiar_respaldos_antiguos(dias=30):
 
 def configurar_respaldos_automaticos(config):
     """
-    Configura los respaldos automáticos según la configuración proporcionada.
-    
-    Args:
-        config (dict): Diccionario con la configuración
-            {
-                "activo": True/False,
-                "hora": "14:30",  # Formato 24h
-                "frecuencia": "diario",  # "diario", "semanal", "mensual"
-                "dia_semana": "monday",  # Para frecuencia semanal
-                "dia_mes": 1,  # Para frecuencia mensual
-                "formato": "todos",  # "excel", "pdf", "sql", "todos"
-                "limpiar_antiguos": True,
-                "dias_retener": 30
-            }
+    Configura los respaldos automáticos según la configuración.
     """
     schedule.clear()  # Limpiar trabajos anteriores
     
@@ -137,7 +147,6 @@ def configurar_respaldos_automaticos(config):
     frecuencia = config.get("frecuencia", "diario")
     formato = config.get("formato", "todos")
     
-    # Configurar tarea de respaldo
     if frecuencia == "diario":
         schedule.every().day.at(hora).do(realizar_respaldo_automatico, formato=formato)
         print(f"📅 Respaldo diario configurado a las {hora}")
@@ -148,11 +157,10 @@ def configurar_respaldos_automaticos(config):
         print(f"📅 Respaldo semanal configurado los {dia_semana} a las {hora}")
     
     elif frecuencia == "mensual":
-        # Para mensual, verificamos cada día si es el día correcto
         schedule.every().day.at(hora).do(verificar_respaldo_mensual, config)
         print(f"📅 Respaldo mensual configurado el día {config.get('dia_mes', 1)} a las {hora}")
     
-    # Configurar limpieza de respaldos antiguos (diaria a las 3 AM)
+    # Configurar limpieza
     if config.get("limpiar_antiguos", True):
         dias_retener = config.get("dias_retener", 30)
         schedule.every().day.at("03:00").do(limpiar_respaldos_antiguos, dias=dias_retener)
@@ -160,7 +168,7 @@ def configurar_respaldos_automaticos(config):
 
 
 def verificar_respaldo_mensual(config):
-    """Verifica si hoy es el día del mes configurado para hacer respaldo"""
+    """Verifica si hoy es el día del mes configurado"""
     dia_actual = datetime.now().day
     dia_configurado = config.get("dia_mes", 1)
     
@@ -176,16 +184,13 @@ def ejecutar_scheduler():
         time.sleep(60)  # Verificar cada minuto
 
 
-# Hilo global para el scheduler
+# Hilo global
 scheduler_thread = None
 
 
 def iniciar_scheduler(config):
     """
     Inicia el scheduler en un hilo separado.
-    
-    Args:
-        config (dict): Configuración de respaldos automáticos
     """
     global scheduler_thread
     
@@ -210,11 +215,9 @@ def obtener_proximos_respaldos():
         proximos = []
         
         for job in jobs:
-            # Identificar el tipo de tarea de forma amigable
             nombre_funcion = str(job.job_func)
             
             if "realizar_respaldo_automatico" in nombre_funcion:
-                # Extraer el formato del respaldo
                 if "formato='todos'" in nombre_funcion:
                     descripcion = "📦 Respaldo completo (Excel, PDF y SQL)"
                 elif "formato='excel'" in nombre_funcion:
@@ -225,20 +228,16 @@ def obtener_proximos_respaldos():
                     descripcion = "💾 Respaldo en SQL"
                 else:
                     descripcion = "📦 Respaldo de base de datos"
-            
             elif "limpiar_respaldos_antiguos" in nombre_funcion:
                 descripcion = "🗑️ Limpieza de respaldos antiguos"
-            
             elif "verificar_respaldo_mensual" in nombre_funcion:
                 descripcion = "📅 Verificación de respaldo mensual"
-            
             else:
                 descripcion = "⚙️ Tarea programada"
             
             proximos.append({
                 "tarea": descripcion,
                 "proxima_ejecucion": job.next_run.strftime("%d/%m/%Y %H:%M") if job.next_run else "N/A",
-                "proxima_ejecucion_completa": job.next_run.strftime("%Y-%m-%d %H:%M:%S") if job.next_run else "N/A"
             })
         
         return proximos
@@ -248,17 +247,35 @@ def obtener_proximos_respaldos():
 
 
 def obtener_historial_respaldos(limite=50):
-    """Obtiene el historial de respaldos automáticos realizados"""
+    """Obtiene el historial de respaldos automáticos desde MySQL"""
     try:
-        if db is None:
+        if cursor is None:
             return []
         
-        respaldos_col = db["respaldos_automaticos"]
-        historial = list(respaldos_col.find().sort("fecha", -1).limit(limite))
+        # Crear tabla si no existe
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS respaldos_automaticos (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                fecha DATETIME,
+                timestamp VARCHAR(50),
+                formato VARCHAR(50),
+                num_archivos INT,
+                total_registros INT,
+                tipo VARCHAR(50)
+            )
+        """)
         
+        cursor.execute("""
+            SELECT * FROM respaldos_automaticos 
+            ORDER BY fecha DESC 
+            LIMIT %s
+        """, (limite,))
+        
+        historial = cursor.fetchall()
+        
+        # Formatear fechas
         for item in historial:
-            item["_id"] = str(item["_id"])
-            if "fecha" in item and isinstance(item["fecha"], datetime):
+            if item.get("fecha") and isinstance(item["fecha"], datetime):
                 item["fecha"] = item["fecha"].strftime("%Y-%m-%d %H:%M:%S")
         
         return historial
@@ -268,19 +285,43 @@ def obtener_historial_respaldos(limite=50):
 
 
 def guardar_configuracion(config):
-    """Guarda la configuración de respaldos en la base de datos"""
+    """Guarda la configuración de respaldos en MySQL"""
     try:
-        if db is None:
+        if cursor is None or conn is None:
             return False
         
-        config_col = db["configuracion_respaldos"]
+        # Crear tabla si no existe
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS configuracion_respaldos (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                tipo VARCHAR(50),
+                configuracion JSON,
+                actualizado DATETIME
+            )
+        """)
         
-        # Actualizar o insertar configuración
-        config_col.update_one(
-            {"tipo": "configuracion_principal"},
-            {"$set": {**config, "actualizado": datetime.now()}},
-            upsert=True
-        )
+        # Convertir config a JSON
+        import json
+        config_json = json.dumps(config)
+        
+        # Verificar si ya existe
+        cursor.execute("SELECT id FROM configuracion_respaldos WHERE tipo = 'configuracion_principal'")
+        existe = cursor.fetchone()
+        
+        if existe:
+            query = """
+                UPDATE configuracion_respaldos 
+                SET configuracion = %s, actualizado = %s 
+                WHERE tipo = 'configuracion_principal'
+            """
+        else:
+            query = """
+                INSERT INTO configuracion_respaldos (tipo, configuracion, actualizado)
+                VALUES ('configuracion_principal', %s, %s)
+            """
+        
+        cursor.execute(query, (config_json, datetime.now()))
+        conn.commit()
         
         return True
     except Exception as e:
@@ -289,19 +330,27 @@ def guardar_configuracion(config):
 
 
 def cargar_configuracion():
-    """Carga la configuración de respaldos desde la base de datos"""
+    """Carga la configuración de respaldos desde MySQL"""
     try:
-        if db is None:
+        if cursor is None:
             return get_configuracion_default()
         
-        config_col = db["configuracion_respaldos"]
-        config = config_col.find_one({"tipo": "configuracion_principal"})
+        # Crear tabla si no existe
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS configuracion_respaldos (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                tipo VARCHAR(50),
+                configuracion JSON,
+                actualizado DATETIME
+            )
+        """)
         
-        if config:
-            config.pop("_id", None)
-            config.pop("tipo", None)
-            config.pop("actualizado", None)
-            return config
+        cursor.execute("SELECT configuracion FROM configuracion_respaldos WHERE tipo = 'configuracion_principal'")
+        resultado = cursor.fetchone()
+        
+        if resultado and resultado.get("configuracion"):
+            import json
+            return json.loads(resultado["configuracion"])
         else:
             return get_configuracion_default()
     

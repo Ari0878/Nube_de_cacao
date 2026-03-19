@@ -1,27 +1,81 @@
 # db.py
-# ---------------------- CONEXIÓN A MONGODB ----------------------
-from pymongo import MongoClient
+# ---------------------- CONEXIÓN A MYSQL ----------------------
+import mysql.connector
 
-try:
-    # Conexión local a MongoDB
-    client = MongoClient("mongodb://localhost:27017/")
+conn = None
+cursor = None
+ventas_table = None
+usuarios_table = None
 
-    # Base de datos principal
-    db = client["cafeteria_db"]
 
-    # Colecciones
-    collection = db["ventas"]
-    usuarios_col = db["usuarios"]
+def conectar():
+    global conn, cursor, ventas_table, usuarios_table
+    try:
+        conn = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="",
+            database="cafeteria_db",
+            auth_plugin='mysql_native_password'
+        )
+        cursor = conn.cursor(dictionary=True)
+        ventas_table = "ventas"
+        usuarios_table = "usuarios"
 
-    # Probar conexión
-    client.server_info()
+        conn.ping(reconnect=True)
+        print("Conectado a MySQL cafeterÃ­a_db correctamente")
 
-except Exception as e:
-    # No detener el servidor Flask.
-    print(f"CRITICAL: No se pudo conectar a MongoDB: {e}")
+    except mysql.connector.Error as e:
+        # Si la base no existe, conectamos al servidor sin DB para permitir creaciÃ³n/uso.
+        if e.errno == 1049:
+            print("Base de datos cafeteria_db no existe. Conectando sin base para restaurar.")
+            try:
+                conn = mysql.connector.connect(
+                    host="localhost",
+                    user="root",
+                    password="",
+                    auth_plugin='mysql_native_password'
+                )
+                cursor = conn.cursor(dictionary=True)
+                ventas_table = "ventas"
+                usuarios_table = "usuarios"
+                conn.ping(reconnect=True)
+            except Exception as e2:
+                print(f"CRITICAL: No se pudo conectar a MySQL sin DB: {e2}")
+                conn = None
+                cursor = None
+                ventas_table = None
+                usuarios_table = None
+        else:
+            print(f"CRITICAL: No se pudo conectar a MySQL: {e}")
+            conn = None
+            cursor = None
+            ventas_table = None
+            usuarios_table = None
 
-    # Variables en None para evitar errores en los módulos que importen db
-    client = None
-    db = None
-    collection = None
-    usuarios_col = None
+    return conn, cursor
+
+
+def get_connection():
+    global conn
+    if conn is None:
+        conectar()
+        return conn
+
+    try:
+        conn.ping(reconnect=True)
+    except Exception as e:
+        print(f"Advertencia: conexión perdida o cerrada, reconectando... {e}")
+        conectar()
+
+    return conn
+
+
+def get_cursor():
+    global cursor
+    get_connection()
+    return cursor
+
+
+# Inicializar al importar
+conectar()

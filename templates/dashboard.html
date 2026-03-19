@@ -55,12 +55,18 @@
             </a>
 
             <div class="d-flex align-items-center gap-3">
-                <select id="language-selector" class="form-select form-select-sm"
+                <select id="language-selector" name="idioma" class="form-select form-select-sm"
                     style="width:auto;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:white;"
                     onchange="changeLanguage(this.value)">
                     <option value="es">🇪🇸 Español</option>
                     <option value="en">🇺🇸 English</option>
                 </select>
+
+                {% if user_role == 'admin' %}
+                <a class="nav-link text-white" href="/admin/usuarios">
+                    <i class="fa-solid fa-users-cog me-2"></i><span>Administrar Usuarios</span>
+                </a>
+                {% endif %}
 
                 <a class="nav-link text-white" href="/perfil">
                     <i class="fa-solid fa-id-card me-2"></i><span data-i18n="nav.profile">Perfil</span>
@@ -82,17 +88,16 @@
 
         <!-- TÍTULO -->
         <div class="text-center mb-5">
-            <h2 class="display-5 fw-bold" style="color:var(--coffee-dark);" data-i18n="dashboard.title">
-                Panel Principal
+            <h2 class="display-5 fw-bold" style="color:var(--coffee-dark);">
+                Hola, {{ usuario.nombre if usuario and usuario.nombre else 'Usuario' }}
             </h2>
-            <p class="lead" style="color:var(--text-light);" data-i18n="dashboard.subtitle">
-                Bienvenido de nuevo, selecciona una opción
-            </p>
+            <p class="lead" style="color:var(--text-light);" data-i18n="{% if user_role == 'admin' %}dashboard.admin_title{% else %}dashboard.user_title{% endif %}"></p>
         </div>
 
         <!-- 🔲 TARJETAS -->
         <div class="row g-4">
 
+            {% if user_role == 'admin' %}
             <!-- RESPALDOS -->
             <div class="col-md-4">
                 <a href="/respaldos" class="text-decoration-none">
@@ -100,8 +105,8 @@
                         style="border-radius:20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);">
                         <div class="card-body text-center p-5 text-white">
                             <i class="fa-solid fa-download fa-3x mb-3"></i>
-                            <h4 class="fw-bold">Generar Respaldos</h4>
-                            <p class="opacity-75">
+                            <h4 class="fw-bold" data-i18n="dashboard.backups">Generar Respaldos</h4>
+                            <p class="opacity-75" data-i18n="dashboard.backups_desc">
                                 Genera respaldos de tu base de datos en Excel, PDF o SQL
                             </p>
                             <span class="badge bg-white bg-opacity-25 px-3 py-2">
@@ -120,8 +125,8 @@
                         style="border-radius:20px;background:linear-gradient(135deg,#f093fb 0%,#8f5e61 100%);">
                         <div class="card-body text-center p-5 text-white">
                             <i class="fa-solid fa-cloud-arrow-up fa-3x mb-3"></i>
-                            <h4 class="fw-bold">Restaurar Respaldos</h4>
-                            <p class="opacity-75">
+                            <h4 class="fw-bold" data-i18n="dashboard.restore">Restaurar Respaldos</h4>
+                            <p class="opacity-75" data-i18n="dashboard.restore_desc">
                                 Restaura tu base de datos desde archivos de respaldo
                             </p>
                             <span class="badge bg-white bg-opacity-25 px-3 py-2">
@@ -145,18 +150,6 @@
                 </a>
             </div>
 
-            <!-- HISTORIAL -->
-            <!-- <div class="col-md-4">
-                <a href="/ventas/historial" class="text-decoration-none text-dark">
-                    <div class="card p-4 card-menu text-center">
-                        <i class="fa-solid fa-list-check fa-3x mb-3"
-                            style="color:var(--gold-primary);"></i>
-                        <h4 data-i18n="dashboard.history">Historial</h4>
-                        <p data-i18n="dashboard.history_desc">Ver todas las ventas registradas.</p>
-                    </div>
-                </a>
-            </div> -->
-
             <!-- ANÁLISIS -->
             <div class="col-md-4">
                 <a href="/analisis" class="text-decoration-none text-dark">
@@ -170,16 +163,74 @@
             </div>
 
             <!-- REGRESIÓN LINEAL -->
-            <!-- <div class="col-md-4">
+            <div class="col-md-4">
                 <a href="/regresion" class="text-decoration-none text-dark">
                     <div class="card p-4 card-menu text-center">
-                        <i class="fa-solid fa-chart-line fa-3x mb-3"
-                            style="color:var(--gold-primary);"></i>
+                        <i class="fa-solid fa-chart-line fa-3x mb-3" style="color:var(--gold-primary);"></i>
                         <h4 data-i18n="dashboard.regression">Regresión Lineal</h4>
                         <p data-i18n="dashboard.regression_desc">Predicciones de ventas.</p>
                     </div>
                 </a>
+            </div>
+
+            <!-- REGRESIÓN MÚLTIPLE -->
+            <!-- <div class="col-md-4">
+                <a href="/regresion-multiple" class="text-decoration-none text-dark">
+                    <div class="card p-4 card-menu text-center">
+                        <i class="fa-solid fa-cubes-stacked fa-3x mb-3" style="color:var(--gold-primary);"></i>
+                        <h4 data-i18n="dashboard.multiple_regression">Regresión Múltiple</h4>
+                        <p data-i18n="dashboard.multiple_regression_desc">Predicción usando 3 variables.</p>
+                    </div>
+                </a>
             </div> -->
+
+            <!-- REGRESIÓN POLINÓMICA -->
+            <!-- <div class="col-md-4">
+                <a href="/regresion-polinomica" class="text-decoration-none text-dark">
+                    <div class="card p-4 card-menu text-center">
+                        <i class="fa-solid fa-wave-square fa-3x mb-3" style="color:var(--gold-primary);"></i>
+                        <h4 data-i18n="dashboard.polynomial_regression">Regresión Polinómica</h4>
+                        <p data-i18n="dashboard.polynomial_regression_desc">Ajuste curvo y residuales.</p>
+                    </div>
+                </a>
+            </div> -->
+
+            {% else %}
+
+            <!-- MENÚ -->
+            <div class="col-md-4">
+                <a href="/menu" class="text-decoration-none text-dark">
+                    <div class="card p-4 card-menu text-center">
+                        <i class="fa-solid fa-utensils fa-3x mb-3" style="color:var(--gold-primary);"></i>
+                        <h4 data-i18n="dashboard.menu">Menú</h4>
+                        <p data-i18n="dashboard.menu_desc">Revisa todos los productos disponibles para comprar.</p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- RESERVAR -->
+            <div class="col-md-4">
+                <a href="/reservation" class="text-decoration-none text-dark">
+                    <div class="card p-4 card-menu text-center">
+                        <i class="fa-solid fa-calendar-check fa-3x mb-3" style="color:var(--gold-primary);"></i>
+                        <h4 data-i18n="dashboard.reservation">Reservar</h4>
+                        <p data-i18n="dashboard.reservation_desc">Reserva tu mesa y disfruta tu experiencia.</p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- CONTACTO -->
+            <div class="col-md-4">
+                <a href="/contact" class="text-decoration-none text-dark">
+                    <div class="card p-4 card-menu text-center">
+                        <i class="fa-solid fa-envelope fa-3x mb-3" style="color:var(--gold-primary);"></i>
+                        <h4 data-i18n="dashboard.contact">Contacto</h4>
+                        <p data-i18n="dashboard.contact_desc">Escríbenos si tienes dudas o quieres sugerir algo.</p>
+                    </div>
+                </a>
+            </div>
+
+            {% endif %}
 
         </div>
     </div>
@@ -196,29 +247,40 @@
 
     <script>
         const toggleBtn = document.getElementById('theme-toggle');
+        const serverLang = "{{ usuario.idioma if usuario and usuario.idioma else '' }}";
+        const serverTheme = "{{ usuario.tema_preferido if usuario and usuario.tema_preferido else '' }}";
 
-        if (localStorage.getItem('theme') === 'dark') {
-            document.body.classList.add('dark-mode');
+        // Sincronizar preferencias del servidor al cargar la página
+        if (serverLang && serverLang !== 'None') {
+            localStorage.setItem('idioma', serverLang);
+        }
+        if (serverTheme && serverTheme !== 'None') {
+            localStorage.setItem('theme', serverTheme);
         }
 
-        toggleBtn.addEventListener('click', () => {
-            document.body.classList.toggle('dark-mode');
-            localStorage.setItem(
-                'theme',
-                document.body.classList.contains('dark-mode') ? 'dark' : 'light'
-            );
-        });
+        // Aplicar tema y idioma iniciales (i18n.js aplica theme al iniciarse)
+        i18n.applyTheme(i18n.getTheme());
+
+        function savePreferences(theme, lang) {
+            fetch('/perfil/preferencias', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `tema_preferido=${encodeURIComponent(theme)}&idioma=${encodeURIComponent(lang)}`
+            });
+        }
 
         function changeLanguage(lang) {
             i18n.setLanguage(lang);
             i18n.translatePage();
-
-            fetch('/perfil/preferencias', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `idioma=${lang}`
-            });
+            savePreferences(localStorage.getItem('theme') || 'auto', lang);
         }
+
+        toggleBtn.addEventListener('click', () => {
+            const current = localStorage.getItem('theme') || 'auto';
+            const next = current === 'dark' ? 'light' : 'dark';
+            i18n.setTheme(next);
+            savePreferences(next, localStorage.getItem('idioma') || 'es');
+        });
     </script>
 
 </body>

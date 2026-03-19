@@ -1,18 +1,16 @@
 # services/auto_backup_service.py
-
 import os
 import json
-import shutil
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from db import db
+from db import cursor, conn
 
 # Directorio para configuración de respaldos automáticos
 AUTO_BACKUP_DIR = "auto_backup_config"
-BACKUPS_STORAGE_DIR = "backups_automaticos"  # Carpeta donde se guardarán los archivos
+BACKUPS_STORAGE_DIR = "backups_automaticos"
 
-# Crear directorios si no existen
+# Crear directorios
 for directory in [AUTO_BACKUP_DIR, BACKUPS_STORAGE_DIR]:
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -25,43 +23,48 @@ scheduler = BackgroundScheduler()
 scheduler.start()
 
 
-def obtener_todas_colecciones():
+def obtener_todas_tablas():
     """
-    Obtiene todas las colecciones de la base de datos
-    Retorna: diccionario con {nombre_coleccion: datos}
+    Obtiene todas las tablas de la base de datos
     """
-    colecciones = {}
+    tablas = {}
     
-    # Verificar si la conexión a la base de datos está disponible
-    if db is None:
+    if cursor is None:
         print("Error: No hay conexión a la base de datos")
-        return colecciones
+        return tablas
     
     try:
-        # Listar todas las colecciones en la base de datos
-        nombres_colecciones = db.list_collection_names()
+        cursor.execute("SHOW TABLES")
+        tablas_nombres = cursor.fetchall()
         
-        for nombre in nombres_colecciones:
-            # Saltar colecciones del sistema
-            if nombre.startswith('system.'):
-                continue
+        for tabla_item in tablas_nombres:
+            nombre_tabla = list(tabla_item.values())[0]
+            
+            try:
+                cursor.execute(f"SELECT * FROM {nombre_tabla}")
+                filas = cursor.fetchall()
                 
-            coleccion = db[nombre]
-            datos = list(coleccion.find({}))
-            
-            # Convertir ObjectId a string y fechas a ISO
-            for documento in datos:
-                documento["_id"] = str(documento["_id"])
-                for key, value in documento.items():
-                    if isinstance(value, datetime):
-                        documento[key] = value.isoformat()
-            
-            colecciones[nombre] = datos
+                # Convertir fechas
+                filas_procesadas = []
+                for fila in filas:
+                    fila_dict = {}
+                    for key, value in fila.items():
+                        if isinstance(value, datetime):
+                            fila_dict[key] = value.isoformat()
+                        else:
+                            fila_dict[key] = value
+                    filas_procesadas.append(fila_dict)
+                
+                tablas[nombre_tabla] = filas_procesadas
+                
+            except Exception as e:
+                print(f"Error obteniendo datos de {nombre_tabla}: {e}")
+                continue
     
     except Exception as e:
-        print(f"Error al obtener colecciones: {e}")
+        print(f"Error al obtener tablas: {e}")
     
-    return colecciones
+    return tablas
 
 
 def cargar_config():
@@ -74,13 +77,13 @@ def cargar_config():
     return {
         "activo": False,
         "hora": "02:00",
-        "frecuencia": "diario",  # diario, semanal, mensual
-        "dia_semana": "monday",  # para semanal
-        "dia_mes": 1,  # para mensual
-        "formato": "todos",  # todos, excel, pdf, sql
+        "frecuencia": "diario",
+        "dia_semana": "monday",
+        "dia_mes": 1,
+        "formato": "todos",
         "limpiar_antiguos": True,
         "dias_retener": 30,
-        "tipo_respaldo": "completo"  # completo, incremental, diferencial
+        "tipo_respaldo": "completo"
     }
 
 
@@ -104,7 +107,7 @@ def guardar_historial(historial):
         json.dump(historial, f, ensure_ascii=False, indent=2)
 
 
-def agregar_historial(tipo_respaldo, formato, cantidad_registros, colecciones_respaldadas, archivos_generados=None, estado="exitoso"):
+def agregar_historial(tipo_respaldo, formato, cantidad_registros, tablas_respaldadas, archivos_generados=None, estado="exitoso"):
     """Agrega una entrada al historial"""
     historial = cargar_historial()
     
@@ -113,14 +116,14 @@ def agregar_historial(tipo_respaldo, formato, cantidad_registros, colecciones_re
         "tipo_respaldo": tipo_respaldo,
         "formato": formato,
         "cantidad_registros": cantidad_registros,
-        "colecciones": colecciones_respaldadas,
+        "tablas": tablas_respaldadas,
         "archivos": archivos_generados or [],
         "estado": estado
     }
     
-    historial.insert(0, entrada)  # Agregar al inicio
+    historial.insert(0, entrada)
     
-    # Mantener solo los últimos 100 registros
+    # Mantener últimos 100
     if len(historial) > 100:
         historial = historial[:100]
     
@@ -165,7 +168,6 @@ def obtener_proximos_respaldos():
                 break
     
     elif config["frecuencia"] == "semanal":
-        # Mapeo de días
         dias_semana = {
             "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
             "friday": 4, "saturday": 5, "sunday": 6
@@ -173,7 +175,6 @@ def obtener_proximos_respaldos():
         
         dia_objetivo = dias_semana.get(config.get("dia_semana", "monday"), 0)
         
-        # Próximas 5 semanas
         for i in range(10):
             dias_hasta = (dia_objetivo - ahora.weekday() + 7 * i) % 7
             if dias_hasta == 0 and i == 0:
@@ -194,7 +195,6 @@ def obtener_proximos_respaldos():
     elif config["frecuencia"] == "mensual":
         dia_mes = config.get("dia_mes", 1)
         
-        # Próximos 5 meses
         for i in range(12):
             try:
                 mes = ahora.month + i
@@ -220,7 +220,6 @@ def obtener_proximos_respaldos():
 def ejecutar_respaldo_programado():
     """
     Función que se ejecuta automáticamente según el horario.
-    Genera archivos, los guarda en el servidor Y los envía por correo si está configurado.
     """
     from services.backup_service import generar_excel, generar_pdf, generar_sql
     from services.email_service import enviar_email_respaldo, cargar_config_email
@@ -231,17 +230,17 @@ def ejecutar_respaldo_programado():
         return
     
     try:
-        print(f"🔄 Iniciando respaldo automático...")
+        print("Iniciando respaldo automático...")
         
-        # Obtener todas las colecciones de la base de datos
-        colecciones = obtener_todas_colecciones()
-        if not colecciones:
-            print("❌ No se encontraron colecciones para respaldar")
+        # Obtener todas las tablas
+        tablas = obtener_todas_tablas()
+        if not tablas:
+            print("No se encontraron tablas para respaldar")
             agregar_historial(
                 config.get("tipo_respaldo", "completo"), 
                 config.get("formato", "todos"), 
                 0, {}, [], 
-                "error: No se encontraron colecciones"
+                "error: No se encontraron tablas"
             )
             return
         
@@ -249,18 +248,15 @@ def ejecutar_respaldo_programado():
         formato_config = config.get("formato", "todos")
         tipo_respaldo = config.get("tipo_respaldo", "completo")
         
-        # Calcular total de registros
-        total_registros = sum(len(datos) for datos in colecciones.values())
-        
-        # Información de colecciones respaldadas
-        colecciones_respaldadas = {nombre: len(datos) for nombre, datos in colecciones.items()}
+        total_registros = sum(len(datos) for datos in tablas.values())
+        tablas_respaldadas = {nombre: len(datos) for nombre, datos in tablas.items()}
         
         archivos_generados = []
-        archivos_paths = []  # Para envío por correo
+        archivos_paths = []
         
-        # Generar archivos según configuración
+        # Generar archivos
         if formato_config == "todos" or formato_config == "excel":
-            archivo_excel = generar_excel(colecciones, tipo_respaldo)
+            archivo_excel = generar_excel(tablas, tipo_respaldo)
             filename = f"backup_auto_{tipo_respaldo}_{timestamp}.xlsx"
             filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
             
@@ -269,10 +265,10 @@ def ejecutar_respaldo_programado():
             
             archivos_generados.append(filename)
             archivos_paths.append(filepath)
-            print(f"  ✅ Excel generado: {filename}")
+            print(f"  Excel generado: {filename}")
         
         if formato_config == "todos" or formato_config == "pdf":
-            archivo_pdf = generar_pdf(colecciones, tipo_respaldo)
+            archivo_pdf = generar_pdf(tablas, tipo_respaldo)
             filename = f"backup_auto_{tipo_respaldo}_{timestamp}.pdf"
             filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
             
@@ -281,10 +277,10 @@ def ejecutar_respaldo_programado():
             
             archivos_generados.append(filename)
             archivos_paths.append(filepath)
-            print(f"  ✅ PDF generado: {filename}")
+            print(f"  PDF generado: {filename}")
         
         if formato_config == "todos" or formato_config == "sql":
-            archivo_sql = generar_sql(colecciones, tipo_respaldo)
+            archivo_sql = generar_sql(tablas, tipo_respaldo)
             filename = f"backup_auto_{tipo_respaldo}_{timestamp}.sql"
             filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
             
@@ -293,46 +289,45 @@ def ejecutar_respaldo_programado():
             
             archivos_generados.append(filename)
             archivos_paths.append(filepath)
-            print(f"  ✅ SQL generado: {filename}")
+            print(f"  SQL generado: {filename}")
         
         # Registrar en historial
         agregar_historial(
             tipo_respaldo, 
             formato_config, 
             total_registros, 
-            colecciones_respaldadas, 
+            tablas_respaldadas, 
             archivos_generados, 
             "exitoso"
         )
         
-        print(f"✅ Respaldo automático {tipo_respaldo} completado:")
-        print(f"   📊 Registros: {total_registros}")
-        print(f"   📁 Colecciones: {len(colecciones)}")
-        print(f"   💾 Archivos: {len(archivos_generados)}")
+        print(f"Respaldo automático completado: {total_registros} registros")
         
-        # ========== ENVIAR POR CORREO SI ESTÁ CONFIGURADO ==========
-        email_config = cargar_config_email()
-        if email_config.get("activo", False):
-            print(f"📧 Enviando respaldo por correo...")
-            success, mensaje = enviar_email_respaldo(
-                archivos_paths,
-                tipo_respaldo,
-                total_registros,
-                colecciones_respaldadas
-            )
-            if success:
-                print(f"   ✅ Correo enviado: {mensaje}")
-            else:
-                print(f"   ⚠️ Error al enviar correo: {mensaje}")
-        else:
-            print(f"   ℹ️ Envío por correo desactivado")
+        # Enviar por correo si está configurado
+        try:
+            from services.email_service import cargar_config_email, enviar_email_respaldo
+            email_config = cargar_config_email()
+            if email_config.get("activo", False):
+                print(f"Enviando respaldo por correo...")
+                success, mensaje = enviar_email_respaldo(
+                    archivos_paths,
+                    tipo_respaldo,
+                    total_registros,
+                    tablas_respaldadas
+                )
+                if success:
+                    print(f"   Correo enviado")
+                else:
+                    print(f"   Error al enviar correo: {mensaje}")
+        except Exception as e:
+            print(f"   Error al enviar correo: {e}")
         
-        # Limpiar archivos antiguos si está configurado
+        # Limpiar archivos antiguos
         if config.get("limpiar_antiguos", False):
             limpiar_backups_antiguos(config.get("dias_retener", 30))
         
     except Exception as e:
-        print(f"❌ Error en respaldo automático: {e}")
+        print(f"Error en respaldo automático: {e}")
         import traceback
         traceback.print_exc()
         agregar_historial(
@@ -344,9 +339,7 @@ def ejecutar_respaldo_programado():
 
 
 def limpiar_backups_antiguos(dias_retener=30):
-    """
-    Elimina archivos de respaldo más antiguos que el número de días especificado
-    """
+    """Elimina archivos de respaldo antiguos"""
     try:
         ahora = datetime.now()
         limite = ahora - timedelta(days=dias_retener)
@@ -357,47 +350,39 @@ def limpiar_backups_antiguos(dias_retener=30):
             filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
             
             if os.path.isfile(filepath):
-                # Obtener fecha de modificación del archivo
-                fecha_modificacion = datetime.fromtimestamp(os.path.getmtime(filepath))
+                fecha_mod = datetime.fromtimestamp(os.path.getmtime(filepath))
                 
-                if fecha_modificacion < limite:
+                if fecha_mod < limite:
                     os.remove(filepath)
                     archivos_eliminados += 1
-                    print(f"  🗑️ Eliminado: {filename}")
         
         if archivos_eliminados > 0:
-            print(f"🧹 Limpieza completada: {archivos_eliminados} archivo(s) eliminado(s)")
+            print(f"Limpieza: {archivos_eliminados} archivo(s) eliminado(s)")
         
     except Exception as e:
-        print(f"⚠️ Error al limpiar archivos antiguos: {e}")
+        print(f"Error al limpiar archivos: {e}")
 
 
 def listar_archivos_guardados():
-    """
-    Lista todos los archivos de respaldo guardados con su información.
-    Solo muestra archivos que realmente existen en el disco.
-    """
+    """Lista todos los archivos de respaldo guardados"""
     archivos = []
     ahora = datetime.now()
     
     try:
-        # Verificar que el directorio existe
         if not os.path.exists(BACKUPS_STORAGE_DIR):
             return archivos
         
         for filename in os.listdir(BACKUPS_STORAGE_DIR):
             filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
             
-            # Verificar que el archivo existe y es un archivo (no directorio)
             if os.path.isfile(filepath):
                 try:
                     stat = os.stat(filepath)
                     fecha_mod = datetime.fromtimestamp(stat.st_mtime)
                     
-                    # Detectar si es nuevo (menos de 1 hora)
                     es_nuevo = (ahora - fecha_mod).total_seconds() < 3600
                     
-                    # Detectar tipo de respaldo por nombre de archivo
+                    # Detectar tipo
                     if 'auto_completo' in filename:
                         tipo_respaldo = "Completo Automático"
                         tipo_color = "primary"
@@ -435,10 +420,9 @@ def listar_archivos_guardados():
                         "tipo_color": tipo_color
                     })
                 except Exception as e:
-                    print(f"Error procesando archivo {filename}: {e}")
+                    print(f"Error procesando {filename}: {e}")
                     continue
         
-        # Ordenar por fecha (más recientes primero)
         archivos.sort(key=lambda x: x["fecha"], reverse=True)
         
     except Exception as e:
@@ -448,29 +432,22 @@ def listar_archivos_guardados():
 
 
 def eliminar_archivo(filename):
-    """
-    Elimina un archivo de respaldo específico
-    """
+    """Elimina un archivo de respaldo específico"""
     try:
         filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
         
         if os.path.exists(filepath) and os.path.isfile(filepath):
             os.remove(filepath)
-            print(f"✅ Archivo eliminado: {filename}")
             return True, "Archivo eliminado exitosamente"
         else:
             return False, "Archivo no encontrado"
     
     except Exception as e:
-        print(f"❌ Error al eliminar {filename}: {e}")
-        return False, f"Error al eliminar archivo: {str(e)}"
+        return False, f"Error al eliminar: {str(e)}"
 
 
 def obtener_estadisticas_storage():
-    """
-    Obtiene estadísticas del almacenamiento de respaldos.
-    Solo cuenta archivos que realmente existen.
-    """
+    """Obtiene estadísticas del almacenamiento de respaldos"""
     try:
         archivos = listar_archivos_guardados()
         
@@ -478,7 +455,6 @@ def obtener_estadisticas_storage():
         tamaño_total = sum(a["tamaño"] for a in archivos)
         tamaño_total_mb = round(tamaño_total / (1024 * 1024), 2)
         
-        # Contar por tipo
         por_tipo = {}
         for archivo in archivos:
             ext = archivo["extension"]
@@ -492,7 +468,6 @@ def obtener_estadisticas_storage():
         }
     
     except Exception as e:
-        print(f"Error al obtener estadísticas: {e}")
         return {
             "total_archivos": 0,
             "tamaño_total_mb": 0,
@@ -502,10 +477,9 @@ def obtener_estadisticas_storage():
 
 
 def configurar_scheduler():
-    """Configura el scheduler según la configuración guardada"""
+    """Configura el scheduler según la configuración"""
     config = cargar_config()
     
-    # Limpiar trabajos existentes
     scheduler.remove_all_jobs()
     
     if not config.get("activo"):
@@ -520,7 +494,6 @@ def configurar_scheduler():
     except:
         hour, minute = 2, 0
     
-    # Configurar trigger según frecuencia
     if config["frecuencia"] == "diario":
         trigger = CronTrigger(hour=hour, minute=minute)
         scheduler.add_job(
@@ -532,7 +505,6 @@ def configurar_scheduler():
         print(f"✅ Respaldo diario programado a las {hour:02d}:{minute:02d}")
     
     elif config["frecuencia"] == "semanal":
-        # Mapeo de días
         dias_semana = {
             "monday": "mon", "tuesday": "tue", "wednesday": "wed",
             "thursday": "thu", "friday": "fri", "saturday": "sat", "sunday": "sun"
@@ -573,12 +545,29 @@ def obtener_estadisticas_historial():
             "total_registros": 0,
             "promedio_registros": 0
         }
+
+    def _to_int(value):
+        """Convierte un valor a entero de forma segura."""
+        if isinstance(value, int):
+            return value
+        if isinstance(value, (float, str)):
+            try:
+                return int(value)
+            except Exception:
+                return 0
+        if isinstance(value, (list, tuple, dict, set)):
+            return len(value)
+        return 0
     
     exitosos = sum(1 for h in historial if h.get("estado") == "exitoso")
     fallidos = len(historial) - exitosos
-    total_registros = sum(h.get("cantidad_registros", 0) for h in historial if h.get("estado") == "exitoso")
+
+    total_registros = sum(
+        _to_int(h.get("cantidad_registros", 0))
+        for h in historial
+        if h.get("estado") == "exitoso"
+    )
     
-    # Calcular promedio
     promedio_registros = total_registros // exitosos if exitosos > 0 else 0
     
     return {
@@ -591,131 +580,76 @@ def obtener_estadisticas_historial():
     }
 
 
-def obtener_colecciones_actuales():
-    """
-    Obtiene las colecciones actuales en la base de datos
-    """
-    if db is None:
+def obtener_tablas_actuales():
+    """Obtiene las tablas actuales en la base de datos"""
+    if cursor is None:
         return []
     
     try:
-        nombres_colecciones = db.list_collection_names()
-        return [nombre for nombre in nombres_colecciones if not nombre.startswith('system.')]
+        cursor.execute("SHOW TABLES")
+        tablas = cursor.fetchall()
+        return [list(t.values())[0] for t in tablas]
     except:
         return []
 
+
 def ejecutar_respaldo_prueba():
-    """
-    Ejecuta un respaldo de prueba y lo envía por correo si está configurado.
-    Similar a ejecutar_respaldo_programado pero específicamente para pruebas.
+    """Ejecuta un respaldo de prueba para verificar configuración.
+
+    Genera los 3 archivos (Excel, PDF, SQL) y retorna las rutas para enviarlos por correo.
     """
     from services.backup_service import generar_excel, generar_pdf, generar_sql
-    from services.email_service import enviar_email_respaldo, cargar_config_email
-    
-    config = cargar_config()
-    
+
     try:
-        print(f"🔄 Iniciando respaldo de prueba...")
+        print("Iniciando respaldo de prueba...")
         
-        # Obtener todas las colecciones
-        colecciones = obtener_todas_colecciones()
-        if not colecciones:
-            return False, "No se encontraron colecciones para respaldar"
+        tablas = obtener_todas_tablas()
+        if not tablas:
+            return False, "No se encontraron tablas para respaldar", [], 0, {}
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        tipo_respaldo = config.get("tipo_respaldo", "completo")
-        formato_config = config.get("formato", "todos")
+        tipo_respaldo = "prueba"
         
-        # Calcular total de registros
-        total_registros = sum(len(datos) for datos in colecciones.values())
-        colecciones_respaldadas = {nombre: len(datos) for nombre, datos in colecciones.items()}
-        
+        total_registros = sum(len(datos) for datos in tablas.values())
+        tablas_respaldadas = {nombre: len(datos) for nombre, datos in tablas.items()}
+
         archivos_generados = []
         archivos_paths = []
         
-        # Generar archivos
-        if formato_config == "todos" or formato_config == "excel":
-            try:
-                archivo_excel = generar_excel(colecciones, tipo_respaldo)
-                filename = f"backup_prueba_{tipo_respaldo}_{timestamp}.xlsx"
-                filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
-                
-                with open(filepath, 'wb') as f:
-                    f.write(archivo_excel.getvalue())
-                
-                archivos_generados.append(filename)
-                archivos_paths.append(filepath)
-                print(f"  ✅ Excel generado: {filename}")
-            except Exception as e:
-                print(f"  ⚠️ Error al generar Excel: {e}")
-                # Continuar con otros formatos
+        # Generar Excel de prueba
+        archivo_excel = generar_excel(tablas, tipo_respaldo)
+        filename_xlsx = f"backup_prueba_{timestamp}.xlsx"
+        filepath_xlsx = os.path.join(BACKUPS_STORAGE_DIR, filename_xlsx)
         
-        if formato_config == "todos" or formato_config == "pdf":
-            try:
-                archivo_pdf = generar_pdf(colecciones, tipo_respaldo)
-                filename = f"backup_prueba_{tipo_respaldo}_{timestamp}.pdf"
-                filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
-                
-                with open(filepath, 'wb') as f:
-                    f.write(archivo_pdf.getvalue())
-                
-                archivos_generados.append(filename)
-                archivos_paths.append(filepath)
-                print(f"  ✅ PDF generado: {filename}")
-            except Exception as e:
-                print(f"  ⚠️ Error al generar PDF: {e}")
+        with open(filepath_xlsx, 'wb') as f:
+            f.write(archivo_excel.getvalue())
         
-        if formato_config == "todos" or formato_config == "sql":
-            try:
-                archivo_sql = generar_sql(colecciones, tipo_respaldo)
-                filename = f"backup_prueba_{tipo_respaldo}_{timestamp}.sql"
-                filepath = os.path.join(BACKUPS_STORAGE_DIR, filename)
-                
-                with open(filepath, 'wb') as f:
-                    f.write(archivo_sql.getvalue())
-                
-                archivos_generados.append(filename)
-                archivos_paths.append(filepath)
-                print(f"  ✅ SQL generado: {filename}")
-            except Exception as e:
-                print(f"  ⚠️ Error al generar SQL: {e}")
+        archivos_generados.append(filename_xlsx)
+        archivos_paths.append(filepath_xlsx)
+
+        # Generar PDF de prueba
+        archivo_pdf = generar_pdf(tablas, tipo_respaldo)
+        filename_pdf = f"backup_prueba_{timestamp}.pdf"
+        filepath_pdf = os.path.join(BACKUPS_STORAGE_DIR, filename_pdf)
         
-        if not archivos_generados:
-            return False, "No se pudo generar ningún archivo de respaldo"
+        with open(filepath_pdf, 'wb') as f:
+            f.write(archivo_pdf.getvalue())
         
-        # Registrar en historial
-        agregar_historial(
-            tipo_respaldo, 
-            formato_config, 
-            total_registros, 
-            colecciones_respaldadas, 
-            archivos_generados, 
-            "manual"
-        )
+        archivos_generados.append(filename_pdf)
+        archivos_paths.append(filepath_pdf)
+
+        # Generar SQL de prueba
+        archivo_sql = generar_sql(tablas, tipo_respaldo)
+        filename_sql = f"backup_prueba_{timestamp}.sql"
+        filepath_sql = os.path.join(BACKUPS_STORAGE_DIR, filename_sql)
         
-        # Enviar por correo si está configurado
-        email_config = cargar_config_email()
-        mensaje_resultado = f"Respaldo de prueba completado:<br> {total_registros} registros<br> {len(archivos_generados)} archivo(s) generado(s)"
+        with open(filepath_sql, 'wb') as f:
+            f.write(archivo_sql.getvalue())
         
-        if email_config.get("activo", False):
-            print(f"Enviando respaldo por correo...")
-            success, mensaje_email = enviar_email_respaldo(
-                archivos_paths,
-                tipo_respaldo,
-                total_registros,
-                colecciones_respaldadas
-            )
-            if success:
-                mensaje_resultado += f"<br><br>📧 {mensaje_email}"
-            else:
-                mensaje_resultado += f"<br><br>⚠️ Archivos generados pero no se pudo enviar por correo: {mensaje_email}"
-        else:
-            mensaje_resultado += "<br><br>ℹ️ Envío por correo desactivado"
-        
-        return True, mensaje_resultado
+        archivos_generados.append(filename_sql)
+        archivos_paths.append(filepath_sql)
+
+        return True, f"Respaldo de prueba exitoso: {total_registros} registros", archivos_paths, total_registros, tablas_respaldadas
     
     except Exception as e:
-        import traceback
-        error_detallado = traceback.format_exc()
-        print(f"❌ Error en respaldo de prueba:\n{error_detallado}")
-        return False, f"Error en respaldo de prueba: {str(e)}"
+        return False, f"Error en respaldo de prueba: {str(e)}", [], 0, {}

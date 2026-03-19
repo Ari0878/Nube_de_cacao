@@ -1,31 +1,38 @@
+# services/regresion_polinomica_service.py
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.metrics import mean_squared_error, r2_score
-from db import collection
+from db import cursor, conn
 
 def obtener_datos_ventas_polinomica():
-    """Obtiene datos de ventas de MongoDB para regresión polinómica"""
+    """Obtiene datos de ventas de MySQL para regresión polinómica"""
     try:
-        # Obtener las últimas 500 ventas
-        ventas = list(collection.find(
-            {},
-            {'_id': 0, 'cantidad': 1, 'total': 1}
-        ).limit(500))
+        if cursor is None:
+            return None, None
+        
+        cursor.execute("""
+            SELECT cantidad, total FROM ventas 
+            WHERE cantidad > 0 AND total > 0 
+            ORDER BY fecha DESC 
+            LIMIT 500
+        """)
+        
+        ventas = cursor.fetchall()
         
         if len(ventas) < 10:
             return None, None
         
         # Convertir a arrays
-        df = pd.DataFrame(ventas)
-        X = df['cantidad'].values.reshape(-1, 1)
-        y = df['total'].values
+        X = np.array([v['cantidad'] for v in ventas]).reshape(-1, 1)
+        y = np.array([v['total'] for v in ventas])
         
         return X, y
     except Exception as e:
         print(f"Error obtener_datos_ventas_polinomica: {e}")
         return None, None
+
 
 def entrenar_modelo_polinomico(grado=2):
     """Entrena un modelo de regresión polinómica"""
@@ -49,21 +56,21 @@ def entrenar_modelo_polinomico(grado=2):
         r2 = r2_score(y, y_pred)
         residuales = y - y_pred
         
-        # Diagnóstico inteligente
+        # Diagnóstico
         if r2 < 0.6:
-            diagnostico = "El modelo tiene bajo poder explicativo. Probablemente está **subajustando** (underfitting)."
+            diagnostico = "El modelo tiene bajo poder explicativo. Subajuste (underfitting)."
             color_diagnostico = "warning"
-        elif 0.6 <= r2 <= 0.95 and rmse > 1:
-            diagnostico = "El modelo se ajusta bien a los datos. Hay un **equilibrio razonable** entre sesgo y varianza."
+        elif 0.6 <= r2 <= 0.95:
+            diagnostico = "El modelo se ajusta bien a los datos. Equilibrio adecuado."
             color_diagnostico = "success"
-        elif r2 > 0.95 and rmse < 3:
-            diagnostico = "El modelo podría estar **sobreajustando** (overfitting). Ajusta demasiado el ruido."
+        elif r2 > 0.95:
+            diagnostico = "El modelo podría estar sobreajustado (overfitting)."
             color_diagnostico = "danger"
         else:
             diagnostico = "El modelo parece razonablemente ajustado."
             color_diagnostico = "info"
         
-        # Generar curva suave para visualización
+        # Curva suave para visualización
         X_linea = np.linspace(X.min(), X.max(), 100).reshape(-1, 1)
         X_linea_poly = poly.transform(X_linea)
         y_linea = modelo.predict(X_linea_poly)

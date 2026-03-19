@@ -1,13 +1,12 @@
-# services/restore_service.py
 import os
 import json
+import re
 from datetime import datetime
 from io import BytesIO
 import openpyxl
-from db import db
-from bson import ObjectId
+import mysql.connector
+import db
 
-# Directorio para almacenar archivos de restauración temporales
 RESTORE_DIR = "restore_temp"
 if not os.path.exists(RESTORE_DIR):
     os.makedirs(RESTORE_DIR)
@@ -15,8 +14,10 @@ if not os.path.exists(RESTORE_DIR):
 HISTORIAL_RESTORE_FILE = os.path.join(RESTORE_DIR, "historial_restauraciones.json")
 
 
+# =========================
+# HISTORIAL
+# =========================
 def cargar_historial_restauraciones():
-    """Carga el historial de restauraciones"""
     if os.path.exists(HISTORIAL_RESTORE_FILE):
         with open(HISTORIAL_RESTORE_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
@@ -24,316 +25,209 @@ def cargar_historial_restauraciones():
 
 
 def guardar_historial_restauraciones(historial):
-    """Guarda el historial de restauraciones"""
     with open(HISTORIAL_RESTORE_FILE, 'w', encoding='utf-8') as f:
         json.dump(historial, f, ensure_ascii=False, indent=2)
 
 
-def agregar_historial_restauracion(tipo_archivo, colecciones_restauradas, registros_totales, estado="exitoso", error=None):
-    """Agrega una entrada al historial de restauraciones"""
+def agregar_historial_restauracion(tipo_archivo, tablas, registros, estado="exitoso", error=None):
     historial = cargar_historial_restauraciones()
-    
-    entrada = {
+
+    historial.insert(0, {
         "fecha": datetime.now().isoformat(),
         "tipo_archivo": tipo_archivo,
-        "colecciones": colecciones_restauradas,
-        "registros_totales": registros_totales,
+        "tablas": tablas,
+        "registros_totales": registros,
         "estado": estado,
         "error": error
-    }
-    
-    historial.insert(0, entrada)
-    
-    # Mantener solo los últimos 50 registros
+    })
+
     if len(historial) > 50:
         historial = historial[:50]
-    
+
     guardar_historial_restauraciones(historial)
 
 
+# =========================
+# VALIDACIÓN
+# =========================
 def validar_archivo_restauracion(filename):
-    """
-    Valida que el archivo tenga una extensión permitida
-    Retorna: (valido: bool, extension: str, mensaje: str)
-    """
-    extensiones_permitidas = {'.sql', '.xlsx', '.json'}
-    
-    if not filename:
-        return False, None, "No se proporcionó ningún archivo"
-    
-    extension = os.path.splitext(filename)[1].lower()
-    
-    if extension not in extensiones_permitidas:
-        return False, extension, f"Extensión no permitida. Solo se aceptan: {', '.join(extensiones_permitidas)}"
-    
-    return True, extension, "Archivo válido"
+    ext = os.path.splitext(filename)[1].lower()
+    permitidas = {'.sql', '.xlsx', '.json'}
+
+    if ext not in permitidas:
+        return False, ext, "Formato no permitido"
+
+    return True, ext, "OK"
 
 
+# =========================
+# 🔥 SQL PRO
+# =========================
 def restaurar_desde_sql(file_content):
-    """
-    Restaura la base de datos desde un archivo SQL
-    Retorna: (success: bool, mensaje: str, stats: dict)
-    """
     try:
-        # Decodificar contenido
+        conexion = db.get_connection()
+        if conexion is None:
+            return False, "No hay conexión", {}
+
+        print("📄 Restaurando SQL (modo pro)...")
+
         sql_content = file_content.decode('utf-8')
-        
-        # Parsear el SQL y extraer datos JSON
-        colecciones_restauradas = {}
-        registros_totales = 0
-        
-        # Dividir en líneas y procesar
-        lineas = sql_content.split('\n')
-        tabla_actual = None
-        
-        for linea in lineas:
-            linea = linea.strip()
-            
-            # Detectar tabla actual
-            if linea.startswith('CREATE TABLE IF NOT EXISTS'):
-                # Extraer nombre de tabla
-                partes = linea.split('`')
-                if len(partes) >= 2:
-                    tabla_actual = partes[1]
-                    colecciones_restauradas[tabla_actual] = []
-            
-            # Procesar INSERT
-            elif linea.startswith('INSERT INTO') and tabla_actual:
-                try:
-                    # Extraer el JSON del INSERT
-                    # Formato: INSERT INTO `tabla` (`mongo_id`, `datos`) VALUES ('id', 'json');
-                    inicio_json = linea.find("', '") + 4
-                    fin_json = linea.rfind("');")
-                    
-                    if inicio_json > 3 and fin_json > inicio_json:
-                        json_str = linea[inicio_json:fin_json]
-                        # Revertir escape de comillas
-                        json_str = json_str.replace("''", "'")
-                        
-                        # Parsear JSON
-                        documento = json.loads(json_str)
-                        colecciones_restauradas[tabla_actual].append(documento)
-                        registros_totales += 1
-                
-                except Exception as e:
-                    print(f"Error al procesar línea SQL: {e}")
+
+        # 🔥 IMPORTANTE: usar conexión directa, no cursor global
+        cursor_local = conexion.cursor()
+
+        # Asegurar la base de datos existe y estamos en contexto
+        cursor_local.execute("CREATE DATABASE IF NOT EXISTS `cafeteria_db` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci")
+        cursor_local.execute("USE `cafeteria_db`")
+
+        # 🔥 Intentamos ejecutar en modo multi si está soportado, si no fallback.
+        try:
+            for result in cursor_local.execute(sql_content, multi=True):
+                pass
+        except TypeError:
+            # El cursor no admite multi, ejecutamos cada comando separado
+            script = []
+            for line in sql_content.splitlines():
+                line = line.strip()
+                if not line or line.startswith('--') or line.startswith('#'):
                     continue
-        
-        # Insertar en MongoDB
-        if db is None:
-            return False, "No hay conexión a la base de datos", {}
-        
-        for nombre_coleccion, documentos in colecciones_restauradas.items():
-            if not documentos:
-                continue
-            
-            try:
-                coleccion = db[nombre_coleccion]
-                
-                # Limpiar colección existente (opcional - comentar si no se desea)
-                # coleccion.delete_many({})
-                
-                # Convertir _id string a ObjectId
-                for doc in documentos:
-                    if '_id' in doc and isinstance(doc['_id'], str):
-                        try:
-                            doc['_id'] = ObjectId(doc['_id'])
-                        except:
-                            # Si no es un ObjectId válido, dejarlo como string
-                            pass
-                
-                # Insertar documentos
-                coleccion.insert_many(documentos, ordered=False)
-            
-            except Exception as e:
-                print(f"Error al restaurar colección {nombre_coleccion}: {e}")
-                continue
-        
-        stats = {
-            "colecciones": len(colecciones_restauradas),
-            "registros": registros_totales,
-            "detalles": {nombre: len(docs) for nombre, docs in colecciones_restauradas.items()}
-        }
-        
-        agregar_historial_restauracion("SQL", list(colecciones_restauradas.keys()), registros_totales)
-        
-        return True, f"Restauración exitosa: {registros_totales} registros en {len(colecciones_restauradas)} colecciones", stats
-    
+                script.append(line)
+
+            cleaned = ' '.join(script)
+            statements = [s.strip() for s in cleaned.split(';') if s.strip()]
+
+            for statement in statements:
+                cursor_local.execute(statement)
+
+        # Calcular estadísticas reales de tablas restauradas
+        tablas_res = []
+        registros_res = 0
+        try:
+            cursor_local.execute("SHOW TABLES")
+            tablas = cursor_local.fetchall() or []
+            for tabla_item in tablas:
+                nombre_tabla = list(tabla_item.values())[0] if isinstance(tabla_item, dict) else tabla_item[0]
+                tablas_res.append(nombre_tabla)
+                cursor_local.execute(f"SELECT COUNT(*) as cnt FROM `{nombre_tabla}`")
+                cnt_row = cursor_local.fetchone()
+                cnt = cnt_row.get("cnt") if isinstance(cnt_row, dict) else cnt_row[0]
+                registros_res += cnt or 0
+        except Exception:
+            pass
+
+        conexion.commit()
+
+        print("✅ Restauración COMPLETA")
+
+        return True, "Restauración exitosa", {"tablas": tablas_res, "total_registros": registros_res}
+
     except Exception as e:
-        error_msg = f"Error al restaurar desde SQL: {str(e)}"
-        print(error_msg)
-        import traceback
-        traceback.print_exc()
-        agregar_historial_restauracion("SQL", [], 0, "error", error_msg)
-        return False, error_msg, {}
+        print(f"❌ ERROR RESTORE: {e}")
 
+        try:
+            conexion.rollback()
+        except:
+            pass
 
+        return False, str(e), {}
+# =========================
+# EXCEL
+# =========================
 def restaurar_desde_excel(file_content):
-    """
-    Restaura la base de datos desde un archivo Excel
-    Retorna: (success: bool, mensaje: str, stats: dict)
-    """
     try:
-        # Cargar Excel
+        cursor = db.get_cursor()
+        if cursor is None:
+            return False, "No hay conexión", {}
+
         wb = openpyxl.load_workbook(BytesIO(file_content))
-        
-        colecciones_restauradas = {}
-        registros_totales = 0
-        
-        # Procesar cada hoja (excepto la de información)
-        for sheet_name in wb.sheetnames:
-            if sheet_name.startswith('📊'):  # Saltar hoja de información
+
+        total_registros = 0
+        tablas_res = []
+
+        for sheet in wb.sheetnames:
+            ws = wb[sheet]
+            headers = [c.value for c in ws[1] if c.value]
+
+            if not headers:
                 continue
-            
-            ws = wb[sheet_name]
-            
-            # Obtener encabezados (primera fila)
-            encabezados = []
-            for cell in ws[1]:
-                if cell.value:
-                    encabezados.append(cell.value)
-            
-            if not encabezados:
-                continue
-            
-            # Procesar datos
-            documentos = []
+
+            cols = ", ".join([f"`{h}` TEXT" for h in headers])
+            cursor.execute(f"CREATE TABLE IF NOT EXISTS `{sheet}` ({cols})")
+
+            registros_tabla = 0
             for row in ws.iter_rows(min_row=2, values_only=True):
-                if not any(row):  # Saltar filas vacías
+                if not any(row):
                     continue
-                
-                documento = {}
-                for idx, valor in enumerate(row):
-                    if idx < len(encabezados):
-                        clave = encabezados[idx]
-                        
-                        # Intentar parsear JSON si parece serlo
-                        if isinstance(valor, str) and (valor.startswith('{') or valor.startswith('[')):
-                            try:
-                                valor = json.loads(valor)
-                            except:
-                                pass
-                        
-                        documento[clave] = valor
-                
-                if documento:
-                    documentos.append(documento)
-                    registros_totales += 1
-            
-            colecciones_restauradas[sheet_name] = documentos
-        
-        # Insertar en MongoDB
-        if db is None:
-            return False, "No hay conexión a la base de datos", {}
-        
-        for nombre_coleccion, documentos in colecciones_restauradas.items():
-            if not documentos:
-                continue
-            
-            try:
-                coleccion = db[nombre_coleccion]
-                
-                # Convertir _id a ObjectId si es necesario
-                for doc in documentos:
-                    if '_id' in doc and isinstance(doc['_id'], str):
-                        try:
-                            doc['_id'] = ObjectId(doc['_id'])
-                        except:
-                            pass
-                
-                # Insertar documentos
-                coleccion.insert_many(documentos, ordered=False)
-            
-            except Exception as e:
-                print(f"Error al restaurar colección {nombre_coleccion}: {e}")
-                continue
-        
-        stats = {
-            "colecciones": len(colecciones_restauradas),
-            "registros": registros_totales,
-            "detalles": {nombre: len(docs) for nombre, docs in colecciones_restauradas.items()}
-        }
-        
-        agregar_historial_restauracion("EXCEL", list(colecciones_restauradas.keys()), registros_totales)
-        
-        return True, f"Restauración exitosa: {registros_totales} registros en {len(colecciones_restauradas)} colecciones", stats
-    
+
+                placeholders = ", ".join(["%s"] * len(headers))
+                cursor.execute(
+                    f"INSERT INTO `{sheet}` ({', '.join(headers)}) VALUES ({placeholders})",
+                    row
+                )
+                registros_tabla += 1
+
+            if registros_tabla > 0:
+                tablas_res.append(sheet)
+                total_registros += registros_tabla
+
+        db.get_connection().commit()
+        return True, "Excel restaurado", {"tablas": tablas_res, "total_registros": total_registros}
+
     except Exception as e:
-        error_msg = f"Error al restaurar desde Excel: {str(e)}"
-        print(error_msg)
-        import traceback
-        traceback.print_exc()
-        agregar_historial_restauracion("EXCEL", [], 0, "error", error_msg)
-        return False, error_msg, {}
+        if db.get_connection() is not None:
+            db.get_connection().rollback()
+        return False, str(e), {}
 
 
+# =========================
+# JSON
+# =========================
 def restaurar_desde_json(file_content):
-    """
-    Restaura la base de datos desde un archivo JSON
-    Retorna: (success: bool, mensaje: str, stats: dict)
-    """
     try:
-        # Decodificar y parsear JSON
-        json_str = file_content.decode('utf-8')
-        data = json.loads(json_str)
-        
-        # Verificar estructura
-        if 'colecciones' not in data:
-            return False, "El archivo JSON no tiene la estructura correcta (falta 'colecciones')", {}
-        
-        colecciones = data['colecciones']
-        registros_totales = 0
-        
-        # Insertar en MongoDB
-        if db is None:
-            return False, "No hay conexión a la base de datos", {}
-        
-        for nombre_coleccion, documentos in colecciones.items():
-            if not documentos:
-                continue
-            
-            try:
-                coleccion = db[nombre_coleccion]
-                
-                # Convertir _id a ObjectId
-                for doc in documentos:
-                    if '_id' in doc and isinstance(doc['_id'], str):
-                        try:
-                            doc['_id'] = ObjectId(doc['_id'])
-                        except:
-                            pass
-                
-                # Insertar documentos
-                coleccion.insert_many(documentos, ordered=False)
-                registros_totales += len(documentos)
-            
-            except Exception as e:
-                print(f"Error al restaurar colección {nombre_coleccion}: {e}")
-                continue
-        
-        stats = {
-            "colecciones": len(colecciones),
-            "registros": registros_totales,
-            "detalles": {nombre: len(docs) for nombre, docs in colecciones.items()}
-        }
-        
-        agregar_historial_restauracion("JSON", list(colecciones.keys()), registros_totales)
-        
-        return True, f"Restauración exitosa: {registros_totales} registros en {len(colecciones)} colecciones", stats
-    
-    except Exception as e:
-        error_msg = f"Error al restaurar desde JSON: {str(e)}"
-        print(error_msg)
-        import traceback
-        traceback.print_exc()
-        agregar_historial_restauracion("JSON", [], 0, "error", error_msg)
-        return False, error_msg, {}
+        cursor = db.get_cursor()
+        if cursor is None:
+            return False, "No hay conexión", {}
 
+        data = json.loads(file_content.decode('utf-8'))
+
+        total_registros = 0
+        tablas_res = []
+
+        for table, rows in data.get("tablas", {}).items():
+            if not rows:
+                continue
+
+            cols = list(rows[0].keys())
+            col_sql = ", ".join([f"`{c}` TEXT" for c in cols])
+
+            cursor.execute(f"CREATE TABLE IF NOT EXISTS `{table}` ({col_sql})")
+
+            registros_tabla = 0
+            for r in rows:
+                vals = [r.get(c) for c in cols]
+                placeholders = ", ".join(["%s"] * len(cols))
+                cursor.execute(
+                    f"INSERT INTO `{table}` ({', '.join(cols)}) VALUES ({placeholders})",
+                    vals
+                )
+                registros_tabla += 1
+
+            if registros_tabla > 0:
+                tablas_res.append(table)
+                total_registros += registros_tabla
+
+        db.get_connection().commit()
+        return True, "JSON restaurado", {"tablas": tablas_res, "total_registros": total_registros}
+
+    except Exception as e:
+        if db.get_connection() is not None:
+            db.get_connection().rollback()
+        return False, str(e), {}
 
 def obtener_estadisticas_restauraciones():
     """Obtiene estadísticas del historial de restauraciones"""
     historial = cargar_historial_restauraciones()
-    
+
     if not historial:
         return {
             "total_restauraciones": 0,
@@ -342,15 +236,19 @@ def obtener_estadisticas_restauraciones():
             "ultima_restauracion": None,
             "total_registros_restaurados": 0
         }
-    
+
     exitosas = sum(1 for h in historial if h.get("estado") == "exitoso")
     fallidas = len(historial) - exitosas
-    total_registros = sum(h.get("registros_totales", 0) for h in historial if h.get("estado") == "exitoso")
-    
+    total_registros = sum(
+        h.get("registros_totales", 0)
+        for h in historial
+        if h.get("estado") == "exitoso"
+    )
+
     return {
         "total_restauraciones": len(historial),
         "exitosas": exitosas,
         "fallidas": fallidas,
-        "ultima_restauracion": historial[0].get("fecha") if historial else None,
+        "ultima_restauracion": historial[0].get("fecha"),
         "total_registros_restaurados": total_registros
     }

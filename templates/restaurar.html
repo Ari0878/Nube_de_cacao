@@ -8,6 +8,12 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
+        :root {
+            --gold-primary: #DAA520;
+            --coffee-dark: #4A2C2C;
+            --text-light: #6c757d;
+        }
+        
         .upload-area {
             border: 3px dashed var(--gold-primary);
             border-radius: 15px;
@@ -120,6 +126,48 @@
             border-left: 4px solid var(--gold-primary);
             border-radius: 10px;
         }
+        .clouds-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            overflow: hidden;
+        }
+        .cloud {
+            position: absolute;
+            background: rgba(255,255,255,0.8);
+            border-radius: 1000px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        .cloud-1 {
+            width: 200px;
+            height: 80px;
+            top: 100px;
+            left: -100px;
+            animation: drift 30s infinite;
+        }
+        .cloud-2 {
+            width: 300px;
+            height: 100px;
+            top: 300px;
+            right: -150px;
+            animation: drift 40s infinite reverse;
+        }
+        .cloud-3 {
+            width: 250px;
+            height: 90px;
+            bottom: 200px;
+            left: 20%;
+            animation: drift 35s infinite;
+        }
+        @keyframes drift {
+            0% { transform: translateX(0); }
+            50% { transform: translateX(100px); }
+            100% { transform: translateX(0); }
+        }
     </style>
 </head>
 <body>
@@ -131,7 +179,7 @@
     </div>
 
     <!-- 🔝 NAVBAR -->
-    <nav class="navbar navbar-expand-lg navbar-dark navbar-premium py-3 mb-5">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark py-3 mb-5">
         <div class="container">
             <a href="/dashboard" class="btn btn-outline-light btn-sm rounded-pill px-3">
                 <i class="fa-solid fa-arrow-left me-2"></i> Volver
@@ -146,6 +194,18 @@
     </nav>
 
     <div class="container mb-5">
+        <!-- Mensajes Flash -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         <!-- Estadísticas -->
         <div class="row mb-4">
             <div class="col-md-3">
@@ -173,7 +233,7 @@
                 <div class="stats-card">
                     <i class="fa-solid fa-database" style="font-size: 2.5rem; color: #17a2b8;"></i>
                     <h3>{{ estadisticas.total_registros_restaurados }}</h3>
-                    <p>Registros Totales</p>
+                    <p>Registros Restaurados</p>
                 </div>
             </div>
         </div>
@@ -231,14 +291,14 @@
                 <!-- Advertencia -->
                 <div class="alert alert-warning mt-4 mb-0" role="alert" style="border-radius: 15px; border-left: 4px solid #ffc107;">
                     <i class="fa-solid fa-exclamation-triangle me-2"></i>
-                    <strong>Importante:</strong> La restauración insertará los datos en las colecciones correspondientes. 
+                    <strong>Importante:</strong> La restauración insertará los datos en las tablas correspondientes. 
                     Asegúrate de tener un respaldo reciente antes de proceder.
                 </div>
             </div>
         </div>
 
         <!-- Historial de Restauraciones -->
-        <div class="card border-0 shadow-lg" style="border-radius: 20px;">
+        <!-- <div class="card border-0 shadow-lg" style="border-radius: 20px;">
             <div class="card-body p-5">
                 <h5 class="mb-4" style="color: var(--coffee-dark);">
                     <i class="fa-solid fa-clock-rotate-left me-2" style="color: var(--gold-primary);"></i>
@@ -255,7 +315,8 @@
                                         {{ item.tipo_archivo }}
                                     </span>
                                     <small class="text-muted">
-                                        <i class="fa-solid fa-calendar me-1"></i> {{ item.fecha }}
+                                        <i class="fa-solid fa-calendar me-1"></i> 
+                                        {{ item.fecha | replace('T', ' ') | truncate(16, true, '') }}
                                     </small>
                                 </div>
                                 
@@ -266,7 +327,7 @@
                                     </p>
                                     <p class="mb-0 text-muted small">
                                         <i class="fa-solid fa-folder-open me-1"></i> 
-                                        Colecciones: <strong>{{ item.colecciones|join(', ') }}</strong>
+                                        Tablas: <strong>{{ item.tablas | join(', ') if item.tablas is iterable and item.tablas is not string else item.tablas }}</strong>
                                     </p>
                                 {% else %}
                                     <p class="mb-0 text-danger">
@@ -298,7 +359,7 @@
                     </div>
                 {% endif %}
             </div>
-        </div>
+        </div> -->
 
         <!-- Información Adicional -->
         <div class="row mt-4">
@@ -312,7 +373,7 @@
                         <ul class="small text-muted mb-0">
                             <li class="mb-2">Verifica que el archivo de respaldo sea válido antes de restaurar</li>
                             <li class="mb-2">Realiza un respaldo actual antes de restaurar datos antiguos</li>
-                            <li>Los datos se insertarán en las colecciones correspondientes</li>
+                            <li>Los datos se insertarán en las tablas correspondientes</li>
                         </ul>
                     </div>
                 </div>
@@ -405,7 +466,7 @@
             const k = 1024;
             const sizes = ['Bytes', 'KB', 'MB', 'GB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
         // Validar antes de enviar

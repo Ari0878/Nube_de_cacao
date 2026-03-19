@@ -56,21 +56,21 @@
 
     <main class="container mt-5 pt-4">
         <div class="text-center mb-5">
-            <h2 class="display-5 fw-bold" style="color: var(--coffee-dark);">Regresión Lineal Múltiple</h2>
-            <p class="lead" style="color: var(--text-light);">Análisis de ventas usando datos reales de MongoDB</p>
+            <h2 class="display-5 fw-bold" style="color: var(--coffee-dark);" data-i18n="regression_multiple.title">Regresión Lineal Múltiple</h2>
+            <p class="lead" style="color: var(--text-light);" data-i18n="regression_multiple.subtitle">Análisis de ventas usando datos reales de MongoDB</p>
         </div>
 
         {% if not modelo %}
         <div class="alert alert-warning text-center">
             <i class="fa-solid fa-exclamation-triangle me-2"></i>
-            No hay suficientes datos para entrenar el modelo. Registra al menos 5 ventas.
+            <span data-i18n="regression.no_data">No hay suficientes datos para entrenar el modelo.</span>
         </div>
         {% else %}
 
         <!-- Información del modelo -->
         <div class="alert alert-info text-center mb-4">
             <i class="fa-solid fa-database me-2"></i>
-            Modelo entrenado con <strong>{{ modelo.num_datos }}</strong> ventas reales
+            <span data-i18n="regression_multiple.trained_with">Modelo entrenado con</span> <strong>{{ modelo.num_datos }}</strong> <span data-i18n="regression_multiple.sales">ventas reales</span>
         </div>
 
         <!-- Métricas -->
@@ -97,7 +97,7 @@
 
         <!-- Coeficientes -->
         <div class="card-premium mb-5">
-            <h4 class="mb-3"><i class="fa-solid fa-function me-2" style="color: var(--gold-primary);"></i> Coeficientes
+            <h4 class="mb-3" data-i18n="regression_multiple.coefficients"><i class="fa-solid fa-function me-2" style="color: var(--gold-primary);"></i> Coeficientes
                 del Modelo</h4>
             <div class="text-center">
                 <div class="coef-badge">
@@ -119,17 +119,17 @@
 
         <!-- Predicción interactiva -->
         <div class="card-premium mb-5">
-            <h4 class="mb-4"><i class="fa-solid fa-wand-magic-sparkles me-2" style="color: var(--gold-primary);"></i>
+            <h4 class="mb-4" data-i18n="regression_multiple.predict_title"><i class="fa-solid fa-wand-magic-sparkles me-2" style="color: var(--gold-primary);"></i>
                 Predecir Total de Venta</h4>
             <form method="POST">
                 <div class="row">
                     <div class="col-md-4">
-                        <label class="form-label fw-bold">Cantidad</label>
+                        <label class="form-label fw-bold" data-i18n="regression_multiple.quantity_coef">Cantidad</label>
                         <input type="number" name="cantidad" class="form-control form-control-lg" min="1" max="100"
                             placeholder="Ej: 5" required>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-bold">Tipo de Producto</label>
+                        <label class="form-label fw-bold" data-i18n="regression_multiple.product_type">Tipo de Producto</label>
                         <select name="tipo" class="form-select form-select-lg" required>
                             {% for codigo, tipo in modelo.tipos_disponibles.items() %}
                             <option value="{{ tipo }}">{{ tipo }}</option>
@@ -137,7 +137,7 @@
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-bold">Día de la Semana</label>
+                        <label class="form-label fw-bold" data-i18n="regression_multiple.day_of_week">Día de la Semana</label>
                         <select name="dia_semana" class="form-select form-select-lg" required>
                             <option value="0">Lunes</option>
                             <option value="1">Martes</option>
@@ -156,7 +156,7 @@
 
             {% if prediccion %}
             <div class="alert alert-success mt-4 text-center">
-                <h5 class="mb-2">Total Estimado</h5>
+                <h5 class="mb-2" data-i18n="regression.predicted_total">Total Estimado</h5>
                 <h2 class="fw-bold">${{ "%.2f"|format(prediccion) }} USD</h2>
             </div>
             {% endif %}
@@ -251,15 +251,15 @@
     <button id="theme-toggle" title="Cambiar tema"
         style="position: fixed; bottom: 25px; right: 25px; width: 50px; height: 50px; border-radius: 50%; border: none; background: var(--gold-primary); color: #fff; font-size: 22px; box-shadow: 0 6px 15px rgba(0,0,0,0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10000;">🌓</button>
 
+    <script src="{{ url_for('static', filename='i18n.js') }}"></script>
     <script>
-        var toggleBtn = document.getElementById('theme-toggle');
-        var savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark') {
-            document.body.classList.add('dark-mode');
-        }
+        const toggleBtn = document.getElementById('theme-toggle');
+        const currentTheme = localStorage.getItem('theme') || 'auto';
+        i18n.applyTheme(currentTheme);
+
         toggleBtn.addEventListener('click', function () {
-            document.body.classList.toggle('dark-mode');
-            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+            const next = localStorage.getItem('theme') === 'dark' ? 'light' : 'dark';
+            i18n.setTheme(next);
         });
     </script>
 
