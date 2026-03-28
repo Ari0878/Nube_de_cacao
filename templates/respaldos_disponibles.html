@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Respaldos Disponibles | Nube de Cacao</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .respaldo-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        .respaldo-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left-color: var(--gold-primary);
+        }
+        .badge-tipo {
+            font-size: 0.75rem;
+        }
+        .archivo-item {
+            background: #f8f9fa;
+            border-radius: 5px;
+            padding: 8px 12px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="clouds-container">
+        <div class="cloud cloud-1"></div>
+        <div class="cloud cloud-2"></div>
+        <div class="cloud cloud-3"></div>
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-premium py-3 mb-4">
+        <div class="container">
+            <a href="/respaldos" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                <i class="fa-solid fa-arrow-left me-2"></i> Volver
+            </a>
+            <span class="navbar-brand ms-auto fw-bold">
+                <i class="fa-solid fa-cloud-download-alt me-2"></i> Respaldos Disponibles
+            </span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col-md-8 mx-auto text-center">
+                <div class="d-inline-block p-3 rounded-circle mb-3 bg-light">
+                    <i class="fa-solid fa-box-archive fa-2x text-primary"></i>
+                </div>
+                <h2 class="fw-bold mb-2">Respaldos Automáticos Disponibles</h2>
+                <p class="text-muted">Archivos generados automáticamente listos para descargar</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                {% if respaldos %}
+                <div class="row g-4">
+                    {% for respaldo in respaldos %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card respaldo-card shadow-sm h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <span class="badge bg-{{ respaldo.color_tipo }} badge-tipo mb-2">
+                                            {{ respaldo.tipo|title }}
+                                        </span>
+                                        <h5 class="card-title mb-1">
+                                            <i class="fa-solid fa-{{ respaldo.icono }} me-2 text-{{ respaldo.color_tipo }}"></i>
+                                            Respaldo {{ respaldo.tipo|title }}
+                                        </h5>
+                                        <small class="text-muted">
+                                            <i class="fa-solid fa-calendar me-1"></i>
+                                            {{ respaldo.fecha_formateada }}
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <small class="text-muted d-block mb-1">
+                                        <i class="fa-solid fa-file me-1"></i>
+                                        {{ respaldo.total_archivos }} archivo(s)
+                                    </small>
+                                    <small class="text-muted d-block">
+                                        <i class="fa-solid fa-hard-drive me-1"></i>
+                                        {{ respaldo.tamaño_total }}
+                                    </small>
+                                </div>
+                                
+                                <!-- Archivos individuales -->
+                                <div class="mb-3">
+                                    <h6 class="small fw-bold mb-2">Archivos:</h6>
+                                    {% for archivo in respaldo.archivos %}
+                                    <div class="archivo-item">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small>
+                                                <i class="fa-solid fa-{{ 'file-excel' if archivo.formato=='excel' else 'file-pdf' if archivo.formato=='pdf' else 'database' }} me-1"></i>
+                                                {{ archivo.nombre|truncate(20) }}
+                                            </small>
+                                            <small class="text-muted">
+                                                {{ formatear_tamaño(archivo.tamaño_bytes) }}
+                                            </small>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                <!-- Botones de descarga -->
+                                <div class="d-grid gap-2">
+                                    <a href="/respaldos/descargar/{{ respaldo._id }}" 
+                                       class="btn btn-primary btn-sm">
+                                        <i class="fa-solid fa-download me-1"></i> Descargar Todo (ZIP)
+                                    </a>
+                                    <div class="btn-group" role="group">
+                                        <a href="/respaldos/descargar/{{ respaldo._id }}/excel" 
+                                           class="btn btn-outline-success btn-sm">
+                                            <i class="fa-solid fa-file-excel"></i>
+                                        </a>
+                                        <a href="/respaldos/descargar/{{ respaldo._id }}/pdf" 
+                                           class="btn btn-outline-danger btn-sm">
+                                            <i class="fa-solid fa-file-pdf"></i>
+                                        </a>
+                                        <a href="/respaldos/descargar/{{ respaldo._id }}/sql" 
+                                           class="btn btn-outline-primary btn-sm">
+                                            <i class="fa-solid fa-database"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-2 text-end">
+                                    <small class="text-muted">
+                                        {{ respaldo.fecha_relativa }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fa-solid fa-inbox fa-4x text-muted mb-4"></i>
+                    <h4 class="text-muted mb-3">No hay respaldos disponibles</h4>
+                    <p class="text-muted mb-4">
+                        Los respaldos automáticos aparecerán aquí cuando se generen.
+                    </p>
+                    <a href="/respaldos/configuracion" class="btn btn-primary">
+                        <i class="fa-solid fa-gear me-2"></i> Configurar Respaldos Automáticos
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Función auxiliar para formatear tamaño -->
+    <script>
+        function formatearTamaño(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            else return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+    </script>
+</body>
+</html>

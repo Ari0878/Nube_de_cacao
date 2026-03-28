@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Estado de Respaldos | Nube de Cacao</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .status-card {
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+        .completo-card { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; }
+        .diferencial-card { background: linear-gradient(135deg, #17a2b8 0%, #0dcaf0 100%); color: white; }
+        .incremental-card { background: linear-gradient(135deg, #6f42c1 0%, #9b59b6 100%); color: white; }
+        .stat-number { font-size: 2.5rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Estado de Respaldos</h1>
+        
+        <div class="row">
+            <div class="col-md-4">
+                <div class="status-card completo-card">
+                    <h4>Completos</h4>
+                    <div class="stat-number">{{ estado.total_completos }}</div>
+                    <p>Último: {{ estado.ultimo_completo }}</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="status-card diferencial-card">
+                    <h4>Diferenciales</h4>
+                    <div class="stat-number">{{ estado.total_diferenciales }}</div>
+                    <p>Último: {{ estado.ultimo_diferencial }}</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="status-card incremental-card">
+                    <h4>Incrementales</h4>
+                    <div class="stat-number">{{ estado.total_incrementales }}</div>
+                    <p>Último: {{ estado.ultimo_incremental }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <a href="/respaldos" class="btn btn-secondary mt-3">Volver</a>
+    </div>
+</body>
+</html>
