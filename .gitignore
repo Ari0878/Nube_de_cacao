@@ -1,2 +1,29 @@
+
 __pycache__/
 *.pyc
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Entornos
+env/
+venv/
+.env
+
+# Backups y archivos generados
+backups_automaticos/
+auto_backup_config/
+backups_metadata/
+restore_temp/
+email_config/
+
+# Archivos sensibles
+config_email.py
+
+# Otros
+*.pdf
+*.sql
+*.xlsx
+

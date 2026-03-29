@@ -73,7 +73,7 @@
                                 style="border-radius: 12px; border: 1px solid var(--input-border); background-color: var(--input-bg);">
                                 <option value="" disabled selected>Seleccionar opción</option>
                                 {% for tipo, precio in precios.items() %}
-                                <option value="{{ tipo }}">{{ tipo }} - ${{ precio }}</option>
+                                <option value="{{ tipo }}">{{ tipo }} - ${{ precio }} MXN</option>
                                 {% endfor %}
                             </select>
                             <label for="tipoSelect" class="text-muted"><i class="fa-solid fa-mug-hot me-2"></i>Tipo de

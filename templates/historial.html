@@ -58,32 +58,6 @@
             opacity: 1;
             transform: translateY(0);
         }
-
-        /* Estilos para los botones de exportación */
-        .export-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        .btn-export {
-            border-radius: 50px;
-            padding: 10px 20px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            border: none;
-        }
-
-        .btn-export:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .btn-export i {
-            margin-right: 8px;
-        }
     </style>
 </head>
 
@@ -122,7 +96,7 @@
         <div class="card border-0 shadow-lg"
             style="border-radius: 20px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
             <div class="card-body p-5">
-                <div class="text-center mb-4">
+                <div class="text-center mb-5">
                     <div class="d-inline-block p-3 rounded-circle mb-3"
                         style="background: var(--bg-cream); box-shadow: 0 5px 15px rgba(0,0,0,0.05);">
                         <i class="fa-solid fa-list-check fa-2x" style="color: var(--coffee-dark);"></i>
@@ -130,24 +104,6 @@
                     <h2 class="fw-bold mb-1" style="color: var(--coffee-dark);">Registro de Transacciones</h2>
                     <p class="text-muted small">Mostrando las últimas 500 ventas realizadas</p>
                 </div>
-
-                <!-- Botones de Exportación -->
-                {% if ventas|length > 0 %}
-                <div class="export-buttons mb-4">
-                    <a href="/respaldos/descargar/excel" class="btn btn-export text-white" style="background: linear-gradient(135deg, #217346 0%, #2d9558 100%);">
-                        <i class="fa-solid fa-file-excel"></i>Descargar Excel
-                    </a>
-                    <a href="/respaldos/descargar/pdf" class="btn btn-export text-white" style="background: linear-gradient(135deg, #d32f2f 0%, #f44336 100%);">
-                        <i class="fa-solid fa-file-pdf"></i>Descargar PDF
-                    </a>
-                    <a href="/respaldos/descargar/sql" class="btn btn-export text-white" style="background: linear-gradient(135deg, #1565c0 0%, #1976d2 100%);">
-                        <i class="fa-solid fa-database"></i>Descargar SQL
-                    </a>
-                    <a href="/respaldos" class="btn btn-export btn-outline-primary">
-                        <i class="fa-solid fa-gear"></i>Más Opciones
-                    </a>
-                </div>
-                {% endif %}
 
                 {% if ventas|length == 0 %}
                 <div class="alert alert-warning text-center border-0 shadow-sm" style="border-radius: 15px;">
@@ -179,7 +135,7 @@
                                 </td>
                                 <td><span class="badge bg-light text-dark border">{{ venta.tipo }}</span></td>
                                 <td class="text-center fw-bold">{{ venta.cantidad }}</td>
-                                <td class="text-end fw-bold text-success">${{ venta.total }}</td>
+                                <td class="text-end fw-bold text-success">${{ venta.total }} MXN</td>
                                 <td class="text-end pe-4 text-muted small">{{ venta.fecha }}</td>
                             </tr>
                             {% endfor %}
@@ -236,7 +192,7 @@
                 loadingText.textContent = step.text;
                 stepIndex++;
 
-            }, 400);
+            }, 400); // Un poco más rápido que el análisis
         });
     </script>
 </body>

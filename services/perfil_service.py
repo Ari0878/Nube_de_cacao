@@ -5,8 +5,8 @@ from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
 
-client = MongoClient("mongodb://localhost:27017/")
-db = client["cafeteria_db"]
+from db import db
+
 usuarios_col = db["usuarios"]
 
 UPLOAD_FOLDER = "static/uploads/avatars"

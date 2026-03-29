@@ -4,7 +4,6 @@ import schedule
 import time
 import threading
 from datetime import datetime
-from services.backup_service import exportar_excel, exportar_pdf, exportar_sql
 from db import db
 
 # Configuración de carpeta de respaldos
@@ -18,15 +17,26 @@ if not os.path.exists(BACKUP_FOLDER):
 def realizar_respaldo_automatico(formato="todos"):
     """
     Realiza un respaldo automático en el formato especificado.
+    Usa las funciones avanzadas que permiten elegir tipo de respaldo.
     
     Args:
         formato (str): "excel", "pdf", "sql" o "todos"
     """
     try:
+        # Importar las funciones de respaldo avanzado
+        from services.backup_avanzado_service import (
+            exportar_excel_completo,
+            exportar_pdf_completo,
+            exportar_sql_completo
+        )
+        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
+        # Por defecto, los respaldos automáticos son COMPLETOS
+        tipo_respaldo = "completo"
+        
         if formato in ["excel", "todos"]:
-            archivo_excel = exportar_excel()
+            archivo_excel = exportar_excel_completo(tipo_respaldo)
             if archivo_excel:
                 ruta_excel = os.path.join(BACKUP_FOLDER, f"auto_backup_{timestamp}.xlsx")
                 with open(ruta_excel, 'wb') as f:
@@ -34,7 +44,7 @@ def realizar_respaldo_automatico(formato="todos"):
                 print(f"✅ Respaldo Excel creado: {ruta_excel}")
         
         if formato in ["pdf", "todos"]:
-            archivo_pdf = exportar_pdf()
+            archivo_pdf = exportar_pdf_completo(tipo_respaldo)
             if archivo_pdf:
                 ruta_pdf = os.path.join(BACKUP_FOLDER, f"auto_backup_{timestamp}.pdf")
                 with open(ruta_pdf, 'wb') as f:
@@ -42,7 +52,7 @@ def realizar_respaldo_automatico(formato="todos"):
                 print(f"✅ Respaldo PDF creado: {ruta_pdf}")
         
         if formato in ["sql", "todos"]:
-            archivo_sql = exportar_sql()
+            archivo_sql = exportar_sql_completo(tipo_respaldo)
             if archivo_sql:
                 ruta_sql = os.path.join(BACKUP_FOLDER, f"auto_backup_{timestamp}.sql")
                 with open(ruta_sql, 'wb') as f:
@@ -54,6 +64,8 @@ def realizar_respaldo_automatico(formato="todos"):
         
     except Exception as e:
         print(f"❌ Error al realizar respaldo automático: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 def registrar_respaldo_en_db(timestamp, formato):

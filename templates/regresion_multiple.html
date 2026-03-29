@@ -78,7 +78,7 @@
             <div class="col-md-4">
                 <div class="metric-card">
                     <div class="mb-2">Intercepto</div>
-                    <div class="metric-value">${{ "%.2f"|format(modelo.intercepto) }}</div>
+                    <div class="metric-value">${{ "%.2f"|format(modelo.intercepto) }} MXN</div>
                 </div>
             </div>
             <div class="col-md-4">
@@ -90,7 +90,7 @@
             <div class="col-md-4">
                 <div class="metric-card">
                     <div class="mb-2">RMSE</div>
-                    <div class="metric-value">${{ "%.2f"|format(modelo.rmse) }}</div>
+                    <div class="metric-value">${{ "%.2f"|format(modelo.rmse) }} MXN</div>
                 </div>
             </div>
         </div>
@@ -157,7 +157,7 @@
             {% if prediccion %}
             <div class="alert alert-success mt-4 text-center">
                 <h5 class="mb-2">Total Estimado</h5>
-                <h2 class="fw-bold">${{ "%.2f"|format(prediccion) }} USD</h2>
+                <h2 class="fw-bold">${{ "%.2f"|format(prediccion) }} MXN</h2>
             </div>
             {% endif %}
         </div>

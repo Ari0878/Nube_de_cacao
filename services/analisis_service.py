@@ -1,19 +1,44 @@
 # services/analisis_service.py
 
 import pandas as pd
+from db import ventas_col   # ✅ CORREGIDO
 
-def analizar_datos_con_spark(pd_ventas):
+def analizar_datos_con_spark(pd_ventas=None):
     """
     Realiza un análisis estadístico utilizando Pandas.
+    Si no se pasa pd_ventas, lo obtiene directamente de MongoDB.
     Devuelve:
     - pd_ventas (o None si no hay datos)
-    - un string con el resumen para mostrar en HTML o consola
+    - un diccionario con el resumen para mostrar en HTML
     """
-
+    
+    # Si no se pasó DataFrame, obtenerlo de MongoDB
     if pd_ventas is None or pd_ventas.empty:
+        try:
+            ventas_list = list(ventas_col.find())   # ✅ CORREGIDO
+            if not ventas_list:
+                return None, None
+            
+            # Convertir a DataFrame
+            pd_ventas = pd.DataFrame(ventas_list)
+        except Exception as e:
+            print(f"Error al obtener datos de MongoDB: {e}")
+            return None, None
+
+    if pd_ventas.empty:
         return None, None
 
     try:
+        # ✅ CONVERTIR TIPOS DE DATOS
+        pd_ventas['cantidad'] = pd.to_numeric(pd_ventas['cantidad'], errors='coerce')
+        pd_ventas['total'] = pd.to_numeric(pd_ventas['total'], errors='coerce')
+        
+        # Eliminar filas con valores nulos después de la conversión
+        pd_ventas = pd_ventas.dropna(subset=['cantidad', 'total'])
+        
+        if pd_ventas.empty:
+            return None, None
+        
         # --- MÉTRICAS PRINCIPALES ---
         total_productos = int(pd_ventas['cantidad'].sum())
         total_ingresos = float(pd_ventas['total'].sum())
@@ -27,7 +52,6 @@ def analizar_datos_con_spark(pd_ventas):
             total_ventas=('total', 'sum')
         ).reset_index()
         
-        # Convertir a lista de diccionarios para fácil uso en Jinja
         ventas_por_tipo = resumen_data.to_dict('records')
 
         # ---------------------- Tendencias ----------------------
@@ -43,7 +67,6 @@ def analizar_datos_con_spark(pd_ventas):
             except:
                 top_cliente = "N/A"
 
-        # ---------------------- Estructura de Datos de Retorno ----------------------
         datos_analisis = {
             "total_productos": total_productos,
             "total_ingresos": total_ingresos,
@@ -57,4 +80,15 @@ def analizar_datos_con_spark(pd_ventas):
 
     except Exception as e:
         print(f"Error en analisis_service: {e}")
+        import traceback
+        traceback.print_exc()
         return pd_ventas, None
+
+
+def obtener_resumen_ventas():
+    """
+    Función simplificada que solo retorna el resumen de análisis.
+    Útil para la ruta /analisis
+    """
+    _, resumen = analizar_datos_con_spark()
+    return resumen

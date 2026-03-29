@@ -1,0 +1,214 @@
+
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-Means Clustering | Nube de Cacao</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        .metric-card {
+            background: linear-gradient(135deg, var(--coffee-light), var(--gold-primary));
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .prediction-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-premium py-3">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/dashboard">
+                <i class="fa-solid fa-mug-hot me-2"></i> Nube de Cacao
+            </a>
+            <a href="/dashboard" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                <i class="fa-solid fa-arrow-left me-2"></i> Volver
+            </a>
+        </div>
+    </nav>
+
+    <main class="container mt-5 pt-4">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold" style="color: var(--coffee-dark);">K-Means Clustering</h2>
+            <p class="lead" style="color: var(--text-light);">Agrupa automáticamente tus datos de ventas</p>
+        </div>
+
+        {% if modelo %}
+        
+        <div class="alert alert-info text-center mb-4">
+            <i class="fa-solid fa-database me-2"></i>
+            Modelo entrenado con <strong>{{ modelo.num_datos_total }}</strong> registros
+        </div>
+
+        <div class="row g-4 mb-5">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="mb-2">Clusters</div>
+                    <div class="metric-value">{{ modelo.n_clusters }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="mb-2">Silhouette Score</div>
+                    <div class="metric-value">{{ "%.3f"|format(modelo.silhouette_score) }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="mb-2">Davies-Bouldin</div>
+                    <div class="metric-value">{{ "%.3f"|format(modelo.davies_bouldin_score) }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="mb-2">Inertia</div>
+                    <div class="metric-value">{{ "%.2f"|format(modelo.inertia) }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="prediction-card mb-5">
+            <h4 class="mb-3">
+                <i class="fa-solid fa-chart-bar me-2" style="color: var(--gold-primary);"></i>
+                Diagnóstico del Modelo
+            </h4>
+            <div class="alert alert-{{ modelo.color_diagnostico }} mb-0">
+                <strong>{{ modelo.diagnostico }}</strong>
+            </div>
+        </div>
+
+        <div class="prediction-card mb-5">
+            <h4 class="mb-4">
+                <i class="fa-solid fa-table me-2" style="color: var(--gold-primary);"></i>
+                Estadísticas por Cluster
+            </h4>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Cluster</th>
+                            <th>Registros</th>
+                            <th>Cantidad Promedio</th>
+                            <th>Total Promedio</th>
+                            <th>Precio Unitario Promedio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stats in modelo.cluster_stats %}
+                        <tr>
+                            <td><span class="badge" style="background: var(--gold-primary);">Cluster {{ stats.cluster_id }}</span></td>
+                            <td>{{ stats.cantidad_registros }}</td>
+                            <td>{{ "%.2f"|format(stats.cantidad_promedio) }}</td>
+                            <td>${{ "%.2f"|format(stats.total_promedio) }} MXN</td>
+                            <td>${{ "%.2f"|format(stats.precio_unitario_promedio) }} MXN</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="prediction-card mb-5">
+            <h4 class="mb-4">
+                <i class="fa-solid fa-wand-magic-sparkles me-2" style="color: var(--gold-primary);"></i>
+                Predecir Cluster para Nueva Venta
+            </h4>
+            <form method="POST">
+                <div class="row align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Cantidad</label>
+                        <input type="number" name="cantidad" class="form-control form-control-lg" step="0.1" placeholder="Ej: 5" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Total (₲)</label>
+                        <input type="number" name="total" class="form-control form-control-lg" step="0.1" placeholder="Ej: 250" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Precio Unitario (₲)</label>
+                        <input type="number" name="precio_unitario" class="form-control form-control-lg" step="0.1" placeholder="Ej: 50" required>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-lg w-100" style="background: var(--gold-primary); color: white;">
+                            <i class="fa-solid fa-calculator me-2"></i> Predecir
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            {% if prediccion %}
+            <div class="alert alert-success mt-4 text-center">
+                <h5 class="mb-2">Resultado de Predicción</h5>
+                <h3 class="fw-bold">Cluster {{ prediccion.cluster }}</h3>
+                <p class="mb-1"><strong>Distancia al Centroide:</strong> {{ "%.3f"|format(prediccion.distancia_al_centroide) }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="prediction-card mb-5">
+            <h4 class="mb-4">
+                <i class="fa-solid fa-search me-2" style="color: var(--gold-primary);"></i>
+                Encontrar Número Óptimo de Clusters
+            </h4>
+            <p class="text-muted mb-3">Utiliza el método del codo para determinar el número ideal de clusters para tus datos.</p>
+            <form method="POST" class="mb-3">
+                <button type="submit" name="calcular_optimos" class="btn btn-lg" style="background: var(--gold-primary); color: white;">
+                    <i class="fa-solid fa-chart-line me-2"></i> Calcular Óptimos
+                </button>
+            </form>
+
+            {% if clusters_optimos %}
+            <div class="alert alert-success">
+                <h5 class="mb-2">Recomendación</h5>
+                <p class="mb-1"><strong>Número Óptimo de Clusters:</strong> {{ clusters_optimos.k_optimo }}</p>
+                <p class="mb-0"><strong>Silhouette Score Óptimo:</strong> {{ "%.3f"|format(clusters_optimos.silhouette_optimo) }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        {% else %}
+        <div class="alert alert-warning text-center">
+            <i class="fa-solid fa-exclamation-triangle me-2"></i>
+            No hay suficientes datos para entrenar el modelo. Registra al menos <strong>5 ventas</strong>.
+        </div>
+        {% endif %}
+    </main>
+
+    <button id="theme-toggle" title="Cambiar tema"
+        style="position: fixed; bottom: 25px; right: 25px; width: 50px; height: 50px; border-radius: 50%; border: none; background: var(--gold-primary); color: #fff; font-size: 22px; box-shadow: 0 6px 15px rgba(0,0,0,0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10000;">🌓</button>
+
+    <script>
+        var toggleBtn = document.getElementById('theme-toggle');
+        var savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+        toggleBtn.addEventListener('click', function () {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
+

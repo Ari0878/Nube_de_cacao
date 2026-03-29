@@ -1,0 +1,338 @@
+
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Árbol de Decisión | Nube de Cacao</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        .metric-card {
+            background: linear-gradient(135deg, var(--coffee-light), var(--gold-primary));
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .prediction-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+        
+        .nav-tabs {
+            border-bottom: 2px solid var(--gold-primary);
+            gap: 1rem;
+        }
+        
+        .nav-tabs .nav-link {
+            color: var(--text-light);
+            border: none;
+            border-bottom: 3px solid transparent;
+            font-weight: 500;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: var(--gold-primary);
+            border-bottom: 3px solid var(--gold-primary);
+            background: none;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            color: var(--gold-primary);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-premium py-3">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/dashboard">
+                <i class="fa-solid fa-mug-hot me-2"></i> Nube de Cacao
+            </a>
+            <a href="/dashboard" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                <i class="fa-solid fa-arrow-left me-2"></i> Volver
+            </a>
+        </div>
+    </nav>
+
+    <main class="container mt-5 pt-4">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold" style="color: var(--coffee-dark);">Árbol de Decisión</h2>
+            <p class="lead" style="color: var(--text-light);">Aprende patrones con Machine Learning</p>
+        </div>
+
+        {% if not arbol_regresion and not arbol_clasificacion %}
+        <div class="alert alert-warning text-center">
+            <i class="fa-solid fa-exclamation-triangle me-2"></i>
+            No hay suficientes datos para entrenar el modelo. Registra al menos <strong>10 ventas</strong>.
+        </div>
+        {% else %}
+
+        <div class="alert alert-info text-center mb-4">
+            <i class="fa-solid fa-database me-2"></i>
+            Modelo entrenado con datos disponibles
+        </div>
+
+        <!-- Pestañas para Regresión vs Clasificación -->
+        <ul class="nav nav-tabs mt-4" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link{% if arbol_regresion %} active{% endif %}" id="tab-regresion" data-bs-toggle="tab" data-bs-target="#regresion-content" type="button" role="tab">
+                    <i class="fa-solid fa-chart-line me-2"></i> Árbol de Regresión
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link{% if not arbol_regresion %} active{% endif %}" id="tab-clasificacion" data-bs-toggle="tab" data-bs-target="#clasificacion-content" type="button" role="tab">
+                    <i class="fa-solid fa-tag me-2"></i> Árbol de Clasificación
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content mt-4">
+            <!-- REGRESIÓN -->
+            <div id="regresion-content" class="tab-pane fade{% if arbol_regresion %} show active{% endif %}" role="tabpanel">
+                {% if arbol_regresion %}
+                <div class="row g-4 mb-5">
+                    <div class="col-md-4">
+                        <div class="metric-card">
+                            <div class="mb-2">R² Score Test</div>
+                            <div class="metric-value">{{ "%.4f"|format(arbol_regresion.r2_test) }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="metric-card">
+                            <div class="mb-2">RMSE Test</div>
+                            <div class="metric-value">${{ "%.2f"|format(arbol_regresion.rmse_test) }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="metric-card">
+                            <div class="mb-2">Profundidad</div>
+                            <div class="metric-value">{{ arbol_regresion.profundidad_arbol }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="prediction-card mb-5">
+                    <h4 class="mb-3">
+                        <i class="fa-solid fa-chart-bar me-2" style="color: var(--gold-primary);"></i>
+                        Diagnóstico del Modelo
+                    </h4>
+                    <div class="alert alert-{{ arbol_regresion.color_diagnostico }} mb-0">
+                        {{ arbol_regresion.diagnostico }}
+                    </div>
+                </div>
+
+                <div class="prediction-card mb-5">
+                    <h4 class="mb-4">
+                        <i class="fa-solid fa-table me-2" style="color: var(--gold-primary);"></i>
+                        Métricas de Rendimiento
+                    </h4>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td><strong>R² Entrenamiento</strong></td>
+                                    <td>{{ "%.4f"|format(arbol_regresion.r2_train) }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>R² Test</strong></td>
+                                    <td>{{ "%.4f"|format(arbol_regresion.r2_test) }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>RMSE Entrenamiento</strong></td>
+                                    <td>${{ "%.2f"|format(arbol_regresion.rmse_train) }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>RMSE Test</strong></td>
+                                    <td>${{ "%.2f"|format(arbol_regresion.rmse_test) }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Muestras Entrenamiento</strong></td>
+                                    <td>{{ arbol_regresion.num_datos_train }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Muestras Test</strong></td>
+                                    <td>{{ arbol_regresion.num_datos_test }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Nodos</strong></td>
+                                    <td>{{ arbol_regresion.num_nodos }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="prediction-card mb-5">
+                    <h4 class="mb-4">
+                        <i class="fa-solid fa-star me-2" style="color: var(--gold-primary);"></i>
+                        Importancia de Características
+                    </h4>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tbody>
+                                {% if arbol_regresion.feature_pairs %}
+                                    {% for pair in arbol_regresion.feature_pairs %}
+                                    <tr>
+                                        <td>{{ pair.name }}</td>
+                                        <td>
+                                            <div class="progress" style="height: 25px;">
+                                                <div class="progress-bar" role="progressbar" style="width: {{ pair.importance * 100 }}%; background: var(--gold-primary);">
+                                                    {{ (pair.importance * 100) | round(1) }}%
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fa-solid fa-circle-info me-2"></i>
+                    No hay datos suficientes para entrenar el árbol de regresión.
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- CLASIFICACIÓN -->
+            <div id="clasificacion-content" class="tab-pane fade{% if not arbol_regresion %} show active{% endif %}" role="tabpanel">
+                {% if arbol_clasificacion %}
+                <div class="row g-4 mb-5">
+                    <div class="col-md-4">
+                        <div class="metric-card">
+                            <div class="mb-2">Accuracy Test</div>
+                            <div class="metric-value">{{ (arbol_clasificacion.accuracy_test * 100) | round(1) }}%</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="metric-card">
+                            <div class="mb-2">Clases</div>
+                            <div class="metric-value">{{ arbol_clasificacion.num_clases }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="metric-card">
+                            <div class="mb-2">Profundidad</div>
+                            <div class="metric-value">{{ arbol_clasificacion.profundidad_arbol }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="prediction-card mb-5">
+                    <h4 class="mb-3">
+                        <i class="fa-solid fa-chart-bar me-2" style="color: var(--gold-primary);"></i>
+                        Diagnóstico del Modelo
+                    </h4>
+                    <div class="alert alert-{{ arbol_clasificacion.color_diagnostico }} mb-0">
+                        {{ arbol_clasificacion.diagnostico }}
+                    </div>
+                </div>
+
+                <div class="prediction-card mb-5">
+                    <h4 class="mb-4">
+                        <i class="fa-solid fa-table me-2" style="color: var(--gold-primary);"></i>
+                        Métricas de Clasificación
+                    </h4>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td><strong>Accuracy Entrenamiento</strong></td>
+                                    <td>{{ (arbol_clasificacion.accuracy_train * 100) | round(2) }}%</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Accuracy Test</strong></td>
+                                    <td>{{ (arbol_clasificacion.accuracy_test * 100) | round(2) }}%</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Muestras Entrenamiento</strong></td>
+                                    <td>{{ arbol_clasificacion.num_datos_train }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Muestras Test</strong></td>
+                                    <td>{{ arbol_clasificacion.num_datos_test }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Nodos</strong></td>
+                                    <td>{{ arbol_clasificacion.num_nodos }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="prediction-card mb-5">
+                    <h4 class="mb-4">
+                        <i class="fa-solid fa-star me-2" style="color: var(--gold-primary);"></i>
+                        Importancia de Características
+                    </h4>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tbody>
+                                {% if arbol_clasificacion.feature_pairs %}
+                                    {% for pair in arbol_clasificacion.feature_pairs %}
+                                    <tr>
+                                        <td>{{ pair.name }}</td>
+                                        <td>
+                                            <div class="progress" style="height: 25px;">
+                                                <div class="progress-bar" role="progressbar" style="width: {{ pair.importance * 100 }}%; background: var(--gold-primary);">
+                                                    {{ (pair.importance * 100) | round(1) }}%
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fa-solid fa-circle-info me-2"></i>
+                    No hay datos suficientes para entrenar el árbol de clasificación.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% endif %}
+    </main>
+
+    <button id="theme-toggle" title="Cambiar tema"
+        style="position: fixed; bottom: 25px; right: 25px; width: 50px; height: 50px; border-radius: 50%; border: none; background: var(--gold-primary); color: #fff; font-size: 22px; box-shadow: 0 6px 15px rgba(0,0,0,0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10000;">🌓</button>
+
+    <script>
+        var toggleBtn = document.getElementById('theme-toggle');
+        var savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+        toggleBtn.addEventListener('click', function () {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
