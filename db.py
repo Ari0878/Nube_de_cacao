@@ -31,10 +31,10 @@ try:
 
     # Probar conexión
     client.server_info()
-    print("✅ Conectado correctamente a MongoDB Atlas")
+    print("Conectado correctamente a MongoDB Atlas")
 
 except Exception as e:
-    print(f"❌ CRITICAL: No se pudo conectar a MongoDB Atlas: {e}")
+    print(f"CRITICAL: No se pudo conectar a MongoDB Atlas: {e}")
 
     client = None
     db = None

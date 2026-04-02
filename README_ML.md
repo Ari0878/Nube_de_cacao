@@ -141,6 +141,38 @@ http://localhost:5000
 - `GET /dashboard` - Panel principal
 - `GET /perfil` - Perfil de usuario
 
+### Admin Dashboard (Panel de Administración)
+- `GET /admin/roles` - Gestión de roles
+  - Permite crear, editar, eliminar roles
+  - Asignar permisos a cada rol (p.ej., crear respaldo, restaurar, gestionar usuarios)
+  - Ayuda a controlar permisos y acceso en la plataforma
+
+- `GET /admin/reservaciones` - Gestión de reservaciones
+  - Ver todas las reservaciones
+  - Cambiar estado (confirmada/pending/cancelada)
+  - Eliminar registros y enviar notificaciones
+  - Facilita la operación de las reservas del negocio
+
+- `GET /respaldos` - Respaldo de datos
+  - Generar respaldo manual o programado
+  - Ver historial de respaldos, tamaño, fecha y estado
+  - Descargar y restaurar desde .sql/.xlsx/.json
+  - Crucial para recuperación ante fallos o pérdidas de datos
+
+- `GET /restaurar` - Restauración de datos
+  - Sube archivo de respaldo y restaura la base de datos
+  - Muestra estadísticas de restauraciones (exitosas/fallidas)
+  - Permite llevar historial y mantener integridad post-fallo
+
+- `GET /analisis` - Análisis de ventas
+  - Panel de métricas avanzadas para ventas y KPIs
+  - Permite tomar decisiones basadas en datos reales
+
+- `GET /kmeans`, `GET /arbol-decision`, `GET /regresion`, `GET /regresion-multiple`, `GET /regresion-polinomica`
+  - Rutas de ML con modelos predictivos
+  - Permiten análisis, clustering, predicción y visualización
+  - Incrementan capacidad de inteligencia operativa
+
 ### Machine Learning
 - `GET, POST /regresion` - Regresión simple
 - `GET, POST /regresion-multiple` - Regresión múltiple

@@ -55,6 +55,57 @@ body.dark-mode {
     --gold-primary: #D4AF37;
 }
 
+body.dark-mode .card,
+body.dark-mode .card-menu,
+body.dark-mode .metric-card,
+body.dark-mode .prediction-card,
+body.dark-mode .table,
+body.dark-mode .table th,
+body.dark-mode .table td,
+body.dark-mode .alert {
+    background: #2a2a2a !important;
+    color: #f2f2f2 !important;
+}
+
+body.dark-mode .card-menu a,
+body.dark-mode .card-menu *,
+body.dark-mode .metric-card *,
+body.dark-mode .prediction-card * {
+    color: #f2f2f2 !important;
+}
+
+body.dark-mode .navbar,
+body.dark-mode .navbar-premium,
+body.dark-mode .bg-light,
+body.dark-mode .bg-white {
+    background-color: #1b1b1b !important;
+    border-color: #333 !important;
+}
+
+body.dark-mode .btn,
+body.dark-mode .btn-clean,
+body.dark-mode .form-control {
+    background-color: #303030 !important;
+    color: #fff !important;
+    border-color: #444 !important;
+}
+
+body.dark-mode .form-control::placeholder {
+    color: #b8b8b8 !important;
+}
+
+body.dark-mode .nav-link,
+body.dark-mode .navbar-brand,
+body.dark-mode .text-muted,
+body.dark-mode .text-light,
+body.dark-mode .display-5,
+body.dark-mode h2,
+body.dark-mode h4,
+body.dark-mode p,
+body.dark-mode .lead {
+    color: #e6e6e6 !important;
+}
+
 body {
     font-family: 'Nunito', sans-serif;
     background-color: var(--bg-cream);

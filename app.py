@@ -1,8 +1,18 @@
 # app.py
-from flask import Flask, render_template, request, redirect, session, flash,jsonify
+from flask import Flask, render_template, request, redirect, session, flash, jsonify
 from flask import Flask, render_template, request, redirect, session, flash
 
 from services.auth_service import verificar_usuario, registrar_usuario
+from services.roles_service import (
+    crear_rol, obtener_todos_los_roles, obtener_rol_por_id, 
+    actualizar_rol, eliminar_rol, asignar_rol_a_usuario, 
+    obtener_usuarios_por_rol, obtener_estadisticas_roles, definir_permisos_rol
+)
+from services.reservations_service import (
+    crear_reservacion, obtener_todas_las_reservaciones, obtener_reservacion_por_id,
+    actualizar_estado_reservacion, eliminar_reservacion, obtener_estadisticas_reservaciones,
+    obtener_reservaciones_por_estatus
+)
 from services.ventas_service import cargar_y_analizar_ventas
 from services.analisis_service import analizar_datos_con_spark
 from services.regresion_service import entrenar_modelo_regresion, predecir_total
@@ -135,15 +145,44 @@ def gallery():
     
     return render_template("gallery.html")
 
-@app.route("/reservation")
+@app.route("/reservation", methods=["GET", "POST"])
 def reservation():
-    """Página de reservaciones"""
+    """Página de reservaciones - GET muestra formulario, POST guarda la reservación"""
+    from services.email_service import enviar_confirmacion_reservacion
+    
     if not session.get("logged_in"):
         flash("Debes iniciar sesión para acceder.", "warning")
         return redirect("/login")
     
     if session.get("user_role") == "admin":
         return redirect("/dashboard")
+    
+    if request.method == "POST":
+        # Procesar formulario de reservación
+        nombre = request.form.get("nombre", "").strip()
+        email = request.form.get("email", "").strip()
+        telefono = request.form.get("telefono", "").strip()
+        numero_personas = request.form.get("numero_personas", "")
+        fecha = request.form.get("fecha", "")
+        hora = request.form.get("hora", "")
+        notas = request.form.get("notas", "").strip()
+        
+        success, mensaje, reserva_id = crear_reservacion(
+            nombre, email, telefono, numero_personas, fecha, hora, notas
+        )
+        
+        if success:
+            # Enviar correo de confirmación
+            email_success, email_msg = enviar_confirmacion_reservacion(
+                email, nombre, email, telefono, numero_personas, fecha, hora, notas
+            )
+            
+            # Usar categoría 'reservation' para que no aparezca en login
+            flash(f"✅ ¡Tu reservación ha sido registrada exitosamente! Te hemos enviado un correo con los detalles.", "reservation_success")
+            return redirect("/reservation")
+        else:
+            flash(f"❌ {mensaje}", "danger")
+            return redirect("/reservation")
     
     return render_template("reservation.html")
 
@@ -999,6 +1038,310 @@ def api_proximos_respaldos():
     return jsonify(proximos)
 
 
+# ======================== GESTIÓN DE ROLES DE USUARIOS ========================
+
+@app.route("/admin/roles")
+def admin_roles():
+    """Panel de administración de roles de usuarios"""
+    if not session.get("logged_in"):
+        flash("Debes iniciar sesión para acceder.", "warning")
+        return redirect("/login")
+    
+    # Verificar que sea admin
+    if session.get("user_role") != "admin":
+        flash("No tienes permisos para acceder a esta sección.", "danger")
+        return redirect("/dashboard")
+    
+    # Obtener todos los roles y estadísticas
+    roles = obtener_todos_los_roles()
+    print(f"DEBUG: Roles obtenidos: {len(roles)} - {roles}")  # DEBUG
+    estadisticas = obtener_estadisticas_roles()
+    
+    return render_template(
+        "admin_roles.html",
+        roles=roles,
+        estadisticas=estadisticas,
+        usuario=session.get("user_name")
+    )
+
+
+@app.route("/admin/roles/crear", methods=["POST"])
+def crear_nuevo_rol():
+    """Crea un nuevo rol"""
+    if not session.get("logged_in") or session.get("user_role") != "admin":
+        return jsonify({"success": False, "mensaje": "No autorizado"}), 401
+    
+    try:
+        rol_tipo = request.form.get("rol_tipo", "").strip()
+        descripcion = request.form.get("descripcion", "").strip()
+        correo = request.form.get("correo", "").strip()
+        password = request.form.get("password", "").strip()
+        confirmar_password = request.form.get("confirmar_password", "").strip()
+        
+        # Validaciones
+        if not rol_tipo:
+            flash("❌ Debes seleccionar un rol", "danger")
+            return redirect("/admin/roles")
+        
+        if not correo:
+            flash("❌ El correo electrónico es obligatorio", "danger")
+            return redirect("/admin/roles")
+        
+        if not password:
+            flash("❌ La contraseña es obligatoria", "danger")
+            return redirect("/admin/roles")
+        
+        if password != confirmar_password:
+            flash("❌ Las contraseñas no coinciden", "danger")
+            return redirect("/admin/roles")
+        
+        if len(password) < 6:
+            flash("❌ La contraseña debe tener al menos 6 caracteres", "danger")
+            return redirect("/admin/roles")
+        
+        success, mensaje, rol_id = crear_rol(rol_tipo, descripcion, correo, password)
+        
+        if success:
+            flash(f"✅ Rol '{rol_tipo}' creado exitosamente con acceso para {correo}.", "success")
+            return redirect("/admin/roles")
+        else:
+            flash(f"❌ {mensaje}", "danger")
+            return redirect("/admin/roles")
+    
+    except Exception as e:
+        flash(f"Error al crear rol: {str(e)}", "danger")
+        return redirect("/admin/roles")
+
+
+@app.route("/admin/roles/editar/<rol_id>", methods=["POST"])
+def editar_rol(rol_id):
+    """Edita un rol existente"""
+    if not session.get("logged_in") or session.get("user_role") != "admin":
+        return jsonify({"success": False, "mensaje": "No autorizado"}), 401
+    
+    try:
+        nombre = request.form.get("nombre", "").strip()
+        descripcion = request.form.get("descripcion", "").strip()
+        estado = request.form.get("estado", "activo")
+        
+        success, mensaje = actualizar_rol(rol_id, nombre, descripcion, estado=estado)
+        
+        if success:
+            flash(f"✅ Rol actualizado exitosamente.", "success")
+        else:
+            flash(f"❌ {mensaje}", "danger")
+        
+        return redirect("/admin/roles")
+    
+    except Exception as e:
+        flash(f"Error al editar rol: {str(e)}", "danger")
+        return redirect("/admin/roles")
+
+
+@app.route("/admin/roles/eliminar/<rol_id>", methods=["POST"])
+def eliminar_rol_route(rol_id):
+    """Elimina un rol"""
+    if not session.get("logged_in") or session.get("user_role") != "admin":
+        return jsonify({"success": False, "mensaje": "No autorizado"}), 401
+    
+    try:
+        success, mensaje = eliminar_rol(rol_id)
+        
+        if success:
+            flash(f"✅ Rol eliminado exitosamente.", "success")
+        else:
+            flash(f"❌ {mensaje}", "danger")
+        
+        return redirect("/admin/roles")
+    
+    except Exception as e:
+        flash(f"Error al eliminar rol: {str(e)}", "danger")
+        return redirect("/admin/roles")
+
+
+@app.route("/admin/roles/detalle/<rol_id>")
+def detalle_rol(rol_id):
+    """Muestra el detalle de un rol"""
+    if not session.get("logged_in") or session.get("user_role") != "admin":
+        flash("No tienes permisos para acceder.", "danger")
+        return redirect("/dashboard")
+    
+    rol = obtener_rol_por_id(rol_id)
+    
+    if not rol:
+        flash("Rol no encontrado.", "danger")
+        return redirect("/admin/roles")
+    
+    usuarios = obtener_usuarios_por_rol(rol["nombre"])
+    
+    return render_template(
+        "admin_rol_detalle.html",
+        rol=rol,
+        usuarios=usuarios,
+        usuario=session.get("user_name")
+    )
+
+
+@app.route("/admin/roles/permisos/<rol_id>", methods=["POST"])
+def actualizar_permisos_rol(rol_id):
+    """Actualiza los permisos de un rol"""
+    if not session.get("logged_in") or session.get("user_role") != "admin":
+        return jsonify({"success": False, "mensaje": "No autorizado"}), 401
+    
+    try:
+        permisos = {
+            "ver_dashboard": request.form.get("ver_dashboard") == "on",
+            "registrar_venta": request.form.get("registrar_venta") == "on",
+            "ver_analisis": request.form.get("ver_analisis") == "on",
+            "generar_respaldos": request.form.get("generar_respaldos") == "on",
+            "restaurar_respaldos": request.form.get("restaurar_respaldos") == "on",
+            "gestionar_usuarios": request.form.get("gestionar_usuarios") == "on",
+            "gestionar_roles": request.form.get("gestionar_roles") == "on"
+        }
+        
+        success, mensaje = definir_permisos_rol(rol_id, permisos)
+        
+        if success:
+            flash(f"✅ Permisos actualizados exitosamente.", "success")
+        else:
+            flash(f"❌ {mensaje}", "danger")
+        
+        return redirect(f"/admin/roles/detalle/{rol_id}")
+    
+    except Exception as e:
+        flash(f"Error al actualizar permisos: {str(e)}", "danger")
+        return redirect(f"/admin/roles/detalle/{rol_id}")
+
+
+@app.route("/admin/roles/api/estadisticas", methods=["GET"])
+def api_estadisticas_roles():
+    """API para obtener estadísticas de roles en JSON"""
+    if not session.get("logged_in"):
+        return jsonify({"error": "No autorizado"}), 401
+    
+    estadisticas = obtener_estadisticas_roles()
+    return jsonify(estadisticas)
+
+
+@app.route("/admin/roles/api/todos", methods=["GET"])
+def api_todos_roles():
+    """API para obtener todos los roles en JSON"""
+    if not session.get("logged_in"):
+        return jsonify({"error": "No autorizado"}), 401
+    
+    roles = obtener_todos_los_roles()
+    return jsonify(roles)
+
+
+# ======================== GESTIÓN DE RESERVACIONES ========================
+
+@app.route("/admin/reservaciones")
+def admin_reservaciones():
+    """Panel de administración de reservaciones"""
+    if not session.get("logged_in"):
+        flash("Debes iniciar sesión para acceder.", "warning")
+        return redirect("/login")
+    
+    # Verificar que sea admin
+    if session.get("user_role") != "admin":
+        flash("No tienes permisos para acceder a esta sección.", "danger")
+        return redirect("/dashboard")
+    
+    # Obtener todas las reservaciones y estadísticas
+    reservaciones = obtener_todas_las_reservaciones()
+    estadisticas = obtener_estadisticas_reservaciones()
+    
+    return render_template(
+        "admin_reservaciones.html",
+        reservaciones=reservaciones,
+        estadisticas=estadisticas,
+        usuario=session.get("user_name")
+    )
+
+
+@app.route("/admin/reservaciones/cambiar-estado/<reserva_id>", methods=["POST"])
+def cambiar_estado_reservacion(reserva_id):
+    """Cambia el estado de una reservación"""
+    from services.email_service import enviar_confirmacion_estado_reservacion
+    
+    if not session.get("logged_in") or session.get("user_role") != "admin":
+        return jsonify({"success": False, "mensaje": "No autorizado"}), 401
+    
+    try:
+        nuevo_estado = request.form.get("estado", "pendiente")
+        success, mensaje = actualizar_estado_reservacion(reserva_id, nuevo_estado)
+        
+        if success:
+            # Obtener detalles de la reservación para enviar correo
+            reservacion = obtener_reservacion_por_id(reserva_id)
+            if reservacion:
+                # Enviar correo de confirmación con nuevo estado
+                enviar_confirmacion_estado_reservacion(
+                    reservacion.get("email"),
+                    reservacion.get("nombre"),
+                    nuevo_estado,
+                    reservacion.get("fecha"),
+                    reservacion.get("hora"),
+                    reservacion.get("numero_personas")
+                )
+            
+            flash(f"✅ {mensaje}", "success")
+        else:
+            flash(f"❌ {mensaje}", "danger")
+        
+        return redirect("/admin/reservaciones")
+    
+    except Exception as e:
+        flash(f"Error: {str(e)}", "danger")
+        return redirect("/admin/reservaciones")
+
+
+@app.route("/admin/reservaciones/eliminar/<reserva_id>", methods=["POST"])
+def eliminar_reservacion_admin(reserva_id):
+    """Elimina una reservación"""
+    if not session.get("logged_in") or session.get("user_role") != "admin":
+        return jsonify({"success": False, "mensaje": "No autorizado"}), 401
+    
+    try:
+        success, mensaje = eliminar_reservacion(reserva_id)
+        
+        if success:
+            flash(f"✅ Reservación eliminada", "success")
+        else:
+            flash(f"❌ {mensaje}", "danger")
+        
+        return redirect("/admin/reservaciones")
+    
+    except Exception as e:
+        flash(f"Error: {str(e)}", "danger")
+        return redirect("/admin/reservaciones")
+
+
+@app.route("/admin/reservaciones/api/estadisticas", methods=["GET"])
+def api_estadisticas_reservaciones():
+    """API para obtener estadísticas de reservaciones en JSON"""
+    if not session.get("logged_in"):
+        return jsonify({"error": "No autorizado"}), 401
+    
+    estadisticas = obtener_estadisticas_reservaciones()
+    return jsonify(estadisticas)
+
+
+@app.route("/admin/reservaciones/api/todas", methods=["GET"])
+def api_todas_reservaciones():
+    """API para obtener todas las reservaciones en JSON"""
+    if not session.get("logged_in"):
+        return jsonify({"error": "No autorizado"}), 401
+    
+    reservaciones = obtener_todas_las_reservaciones()
+    return jsonify(reservaciones)
+
+
+# Eliminado el app.run intermedio para que todas las rutas se registren antes de iniciar
+# if __name__ == "__main__":
+#     app.run(debug=True, host='0.0.0.0', port=5000)
+
+
 @app.route('/respaldos/api/historial-reciente', methods=['GET'])
 def api_historial_reciente():
     """API para obtener historial reciente"""
@@ -1249,7 +1592,7 @@ def restaurar_respaldos():
     
     historial = cargar_historial_restauraciones()[:10]  # Últimas 10
     estadisticas = obtener_estadisticas_restauraciones()
-    
+
     # Formatear fechas
     for item in historial:
         try:
@@ -1257,12 +1600,18 @@ def restaurar_respaldos():
             item["fecha"] = fecha_dt.strftime("%Y-%m-%d %H:%M:%S")
         except:
             pass
-    
+
     return render_template(
         "restaurar.html",
         historial=historial,
         estadisticas=estadisticas
     )
+
+
+@app.route("/restaurar/")
+def restaurar_respaldos_slash():
+    """Redirigir ruta con slash final a la ruta canónica"""
+    return redirect(url_for('restaurar_respaldos'))
 
 
 @app.route("/restaurar/subir", methods=["POST"])

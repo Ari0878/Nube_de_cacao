@@ -38,6 +38,30 @@
             position: relative;
             z-index: 10;
         }
+
+        .menu-items-hidden {
+            display: none !important;
+        }
+
+        .btn-ver-mas {
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            background: linear-gradient(135deg, var(--gold-primary) 0%, #c9955a 100%);
+            border: none;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(212, 165, 116, 0.3);
+            margin-top: 30px;
+        }
+
+        .btn-ver-mas:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(212, 165, 116, 0.5);
+            background: linear-gradient(135deg, #c9955a 0%, var(--gold-primary) 100%);
+        }
     </style>
 </head>
 
@@ -100,20 +124,20 @@
         </div>
 
         <!-- 🔲 TARJETAS -->
-        <div class="row g-4">
+        <div class="row g-4 justify-content-center">
 
             <!-- RESPALDOS -->
             <div class="col-md-4">
                 <a href="/respaldos" class="text-decoration-none">
                     <div class="card h-100 border-0 shadow-sm hover-card"
-                        style="border-radius:20px;background:linear-gradient(135deg,#8B7BFF 0%,#9B6BB1 100%);">
-                        <div class="card-body text-center p-5 text-white">
+                        style="border-radius:20px;background:linear-gradient(135deg,#FFF8DC 0%,#F5F5DC 100%);">
+                        <div class="card-body text-center p-5" style="color: var(--text-main);">
                             <i class="fa-solid fa-download fa-3x mb-3"></i>
                             <h4 class="fw-bold">Generar Respaldos</h4>
                             <p class="opacity-75">
                                 Genera respaldos de tu base de datos en Excel, PDF o SQL
                             </p>
-                            <span class="badge bg-white bg-opacity-25 px-3 py-2">
+                            <span class="badge px-3 py-2" style="background: rgba(44, 24, 16, 0.25); color: var(--text-main);">
                                 <i class="fa-solid fa-shield-halved me-1"></i>
                                 Seguridad de Datos
                             </span>
@@ -126,14 +150,14 @@
             <div class="col-md-4">
                 <a href="/restaurar" class="text-decoration-none">
                     <div class="card h-100 border-0 shadow-sm hover-card"
-                        style="border-radius:20px;background:linear-gradient(135deg,#F75E7B 0%,#E85E99 100%);">
-                        <div class="card-body text-center p-5 text-white">
+                        style="border-radius:20px;background:linear-gradient(135deg,#FFF8DC 0%,#F5F5DC 100%);">
+                        <div class="card-body text-center p-5" style="color: var(--text-main);">
                             <i class="fa-solid fa-cloud-arrow-up fa-3x mb-3"></i>
                             <h4 class="fw-bold">Restaurar Respaldos</h4>
                             <p class="opacity-75">
                                 Restaura tu base de datos desde archivos de respaldo
                             </p>
-                            <span class="badge bg-white bg-opacity-25 px-3 py-2">
+                            <span class="badge px-3 py-2" style="background: rgba(44, 24, 16, 0.25); color: var(--text-main);">
                                 <i class="fa-solid fa-clock-rotate-left me-1"></i>
                                 Recuperación de Datos
                             </span>
@@ -153,111 +177,159 @@
                     </div>
                 </a>
             </div>
+        </div>
 
-            <!-- HISTORIAL -->
-            <!-- <div class="col-md-4">
-                <a href="/ventas/historial" class="text-decoration-none text-dark">
-                    <div class="card p-4 card-menu text-center">
-                        <i class="fa-solid fa-list-check fa-3x mb-3"
-                            style="color:var(--gold-primary);"></i>
-                        <h4 data-i18n="dashboard.history">Historial</h4>
-                        <p data-i18n="dashboard.history_desc">Ver todas las ventas registradas.</p>
-                    </div>
-                </a>
-            </div> -->
-
-            <!-- ANÁLISIS -->
-            <div class="col-md-4">
-                <a href="/analisis" class="text-decoration-none text-dark">
-                    <div class="card p-4 card-menu text-center">
-                        <i class="fa-solid fa-chart-pie fa-3x mb-3"
-                            style="color:var(--gold-primary);"></i>
-                        <h4 data-i18n="dashboard.analysis">Análisis</h4>
-                        <p data-i18n="dashboard.analysis_desc">Estadísticas avanzadas y tendencias.</p>
-                    </div>
-                </a>
-            </div>
-
-            <!-- K-MEANS CLUSTERING -->
-            <div class="col-md-4">
-                <a href="/kmeans" class="text-decoration-none">
-                    <div class="card h-100 border-0 shadow-sm hover-card"
-                        style="border-radius:20px;background:linear-gradient(135deg,#FF9D5C 0%,#FFD369 100%);">
-                        <div class="card-body text-center p-5 text-white">
-                            <i class="fa-solid fa-circle-nodes fa-3x mb-3"></i>
-                            <h4 class="fw-bold">K-Means Clustering</h4>
-                            <p class="opacity-75">
-                                Agrupa tus datos de ventas automáticamente
-                            </p>
-                            <span class="badge bg-white bg-opacity-25 px-3 py-2">
-                                <i class="fa-solid fa-brain me-1"></i>
-                                Machine Learning
-                            </span>
+        <!-- OPCIONES ADICIONALES (OCULTAS POR DEFECTO) -->
+        <div id="menuOculto" class="menu-items-hidden">
+            <!-- FILA 2 -->
+            <div class="row g-4 justify-content-center" style="margin-top: 20px;">
+                <!-- ANÁLISIS -->
+                <div class="col-md-4">
+                    <a href="/analisis" class="text-decoration-none text-dark">
+                        <div class="card p-4 card-menu text-center">
+                            <i class="fa-solid fa-chart-pie fa-3x mb-3"
+                                style="color:var(--gold-primary);"></i>
+                            <h4 data-i18n="dashboard.analysis">Análisis</h4>
+                            <p data-i18n="dashboard.analysis_desc">Estadísticas avanzadas y tendencias.</p>
                         </div>
-                    </div>
-                </a>
-            </div>
+                    </a>
+                </div>
 
-            <!-- ÁRBOL DE DECISIÓN -->
-            <div class="col-md-4">
-                <a href="/arbol-decision" class="text-decoration-none">
-                    <div class="card h-100 border-0 shadow-sm hover-card"
-                        style="border-radius:20px;background:linear-gradient(135deg,#5BC0DE 0%,#4DB8D4 100%);">
-                        <div class="card-body text-center p-5 text-white">
-                            <i class="fa-solid fa-sitemap fa-3x mb-3"></i>
-                            <h4 class="fw-bold">Árbol de Decisión</h4>
-                            <p class="opacity-75">
-                                Predice ventas y clasifica productos
-                            </p>
-                            <span class="badge bg-white bg-opacity-25 px-3 py-2">
-                                <i class="fa-solid fa-brain me-1"></i>
-                                Machine Learning
-                            </span>
+                <!-- K-MEANS CLUSTERING -->
+                <div class="col-md-4">
+                    <a href="/kmeans" class="text-decoration-none">
+                        <div class="card h-100 border-0 shadow-sm hover-card"
+                            style="border-radius:20px;background:linear-gradient(135deg,#FFF8DC 0%,#F5F5DC 100%);">
+                            <div class="card-body text-center p-5" style="color: var(--text-main);">
+                                <i class="fa-solid fa-circle-nodes fa-3x mb-3"></i>
+                                <h4 class="fw-bold">K-Means Clustering</h4>
+                                <p class="opacity-75">
+                                    Agrupa tus datos de ventas automáticamente
+                                </p>
+                                <span class="badge px-3 py-2" style="background: rgba(44, 24, 16, 0.25); color: var(--text-main);">
+                                    <i class="fa-solid fa-brain me-1"></i>
+                                    Machine Learning
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                </a>
-            </div>
+                    </a>
+                </div>
 
-            <!-- REGRESIÓN LINEAL -->
-            <div class="col-md-4">
-                <a href="/regresion" class="text-decoration-none">
-                    <div class="card h-100 border-0 shadow-sm hover-card"
-                        style="border-radius:20px;background:linear-gradient(135deg,#4DB8A8 0%,#F75E7B 100%);">
-                        <div class="card-body text-center p-5 text-white">
-                            <i class="fa-solid fa-chart-line fa-3x mb-3"></i>
-                            <h4 class="fw-bold">Regresión Simple</h4>
-                            <p class="opacity-75">
-                                Predice valores basado en una variable
-                            </p>
-                            <span class="badge bg-white bg-opacity-25 px-3 py-2">
-                                <i class="fa-solid fa-brain me-1"></i>
-                                Machine Learning
-                            </span>
+                <!-- ÁRBOL DE DECISIÓN -->
+                <div class="col-md-4">
+                    <a href="/arbol-decision" class="text-decoration-none">
+                        <div class="card h-100 border-0 shadow-sm hover-card"
+                            style="border-radius:20px;background:linear-gradient(135deg,#FFF8DC 0%,#F5F5DC 100%);">
+                            <div class="card-body text-center p-5" style="color: var(--text-main);">
+                                <i class="fa-solid fa-sitemap fa-3x mb-3"></i>
+                                <h4 class="fw-bold">Árbol de Decisión</h4>
+                                <p class="opacity-75">
+                                    Predice ventas y clasifica productos
+                                </p>
+                                <span class="badge px-3 py-2" style="background: rgba(44, 24, 16, 0.25); color: var(--text-main);">
+                                    <i class="fa-solid fa-brain me-1"></i>
+                                    Machine Learning
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                </a>
+                    </a>
+                </div>
             </div>
 
-            <!-- REGRESIÓN MÚLTIPLE -->
-            <div class="col-md-4">
-                <a href="/regresion-multiple" class="text-decoration-none">
-                    <div class="card h-100 border-0 shadow-sm hover-card"
-                        style="border-radius:20px;background:linear-gradient(135deg,#FF9B6F 0%,#FFB84D 100%);">
-                        <div class="card-body text-center p-5 text-white">
-                            <i class="fa-solid fa-chart-area fa-3x mb-3"></i>
-                            <h4 class="fw-bold">Regresión Múltiple</h4>
-                            <p class="opacity-75">
-                                Predice usando múltiples variables
-                            </p>
-                            <span class="badge bg-white bg-opacity-25 px-3 py-2">
-                                <i class="fa-solid fa-brain me-1"></i>
-                                Machine Learning
-                            </span>
+            <!-- FILA 3 -->
+            <div class="row g-4 justify-content-center" style="margin-top: 20px;">
+                <!-- REGRESIÓN LINEAL -->
+                <div class="col-md-4">
+                    <a href="/regresion" class="text-decoration-none">
+                        <div class="card h-100 border-0 shadow-sm hover-card"
+                            style="border-radius:20px;background:linear-gradient(135deg,#FFF8DC 0%,#F5F5DC 100%);">
+                            <div class="card-body text-center p-5" style="color: var(--text-main);">
+                                <i class="fa-solid fa-chart-line fa-3x mb-3"></i>
+                                <h4 class="fw-bold">Regresión Simple</h4>
+                                <p class="opacity-75">
+                                    Predice valores basado en una variable
+                                </p>
+                                <span class="badge px-3 py-2" style="background: rgba(44, 24, 16, 0.25); color: var(--text-main);">
+                                    <i class="fa-solid fa-brain me-1"></i>
+                                    Machine Learning
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                </a>
+                    </a>
+                </div>
+
+                <!-- REGRESIÓN MÚLTIPLE -->
+                <div class="col-md-4">
+                    <a href="/regresion-multiple" class="text-decoration-none">
+                        <div class="card h-100 border-0 shadow-sm hover-card"
+                            style="border-radius:20px;background:linear-gradient(135deg,#FFF8DC 0%,#F5F5DC 100%);">
+                            <div class="card-body text-center p-5" style="color: var(--text-main);">
+                                <i class="fa-solid fa-chart-area fa-3x mb-3"></i>
+                                <h4 class="fw-bold">Regresión Múltiple</h4>
+                                <p class="opacity-75">
+                                    Predice usando múltiples variables
+                                </p>
+                                <span class="badge px-3 py-2" style="background: rgba(44, 24, 16, 0.25); color: var(--text-main);">
+                                    <i class="fa-solid fa-brain me-1"></i>
+                                    Machine Learning
+                                </span>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- GESTIÓN DE ROLES (ADMIN) -->
+                <div class="col-md-4">
+                    <a href="/admin/roles" class="text-decoration-none">
+                        <div class="card h-100 border-0 shadow-sm hover-card"
+                            style="border-radius:20px;background:linear-gradient(135deg,#FFF8DC 0%,#F5F5DC 100%);">
+                            <div class="card-body text-center p-5" style="color: var(--text-main);">
+                                <i class="fa-solid fa-users-gear fa-3x mb-3"></i>
+                                <h4 class="fw-bold">Gestión de Roles</h4>
+                                <p class="opacity-75">
+                                    Administra roles y permisos de usuarios
+                                </p>
+                                <span class="badge px-3 py-2" style="background: rgba(44, 24, 16, 0.25); color: var(--text-main);">
+                                    <i class="fa-solid fa-shield-halved me-1"></i>
+                                    Administración
+                                </span>
+                            </div>
+                        </div>
+                    </a>
+                </div>
             </div>
 
+            <!-- FILA 4 -->
+            <div class="row g-4 justify-content-center" style="margin-top: 20px;">
+                <!-- RESERVACIONES (ADMIN) -->
+                <div class="col-md-4">
+                    <a href="/admin/reservaciones" class="text-decoration-none">
+                        <div class="card h-100 border-0 shadow-sm hover-card"
+                            style="border-radius:20px;background:linear-gradient(135deg,#FFF8DC 0%,#F5F5DC 100%);">
+                            <div class="card-body text-center p-5" style="color: var(--text-main);">
+                                <i class="fa-solid fa-calendar-check fa-3x mb-3"></i>
+                                <h4 class="fw-bold">Reservaciones</h4>
+                                <p class="opacity-75">
+                                    Ver y administrar todas las reservaciones
+                                </p>
+                                <span class="badge px-3 py-2" style="background: rgba(44, 24, 16, 0.25); color: var(--text-main);">
+                                    <i class="fa-solid fa-book me-1"></i>
+                                    Registros
+                                </span>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTÓN VER MÁS -->
+        <div class="row g-4 justify-content-center" style="margin-top: 20px;">
+            <div class="w-100 text-center">
+                <button class="btn-ver-mas" id="btnVerMas" onclick="toggleMenuOculto()">
+                    <i class="fa-solid fa-chevron-down me-2"></i>Ver más opciones
+                </button>
+            </div>
         </div>
     </div>
 
@@ -272,23 +344,10 @@
     <script src="{{ url_for('static', filename='i18n.js') }}"></script>
 
     <script>
-        const toggleBtn = document.getElementById('theme-toggle');
-
-        if (localStorage.getItem('theme') === 'dark') {
-            document.body.classList.add('dark-mode');
-        }
-
-        toggleBtn.addEventListener('click', () => {
-            document.body.classList.toggle('dark-mode');
-            localStorage.setItem(
-                'theme',
-                document.body.classList.contains('dark-mode') ? 'dark' : 'light'
-            );
-        });
-
         function changeLanguage(lang) {
-            i18n.setLanguage(lang);
-            i18n.translatePage();
+            if (i18n.setLanguage(lang)) {
+                i18n.translatePage();
+            }
 
             fetch('/perfil/preferencias', {
                 method: 'POST',
@@ -296,6 +355,45 @@
                 body: `idioma=${lang}`
             });
         }
+
+        function setMenuState(isOpen) {
+            const menu = document.getElementById('menuOculto');
+            const btn = document.getElementById('btnVerMas');
+
+            if (isOpen) {
+                menu.classList.remove('menu-items-hidden');
+                btn.innerHTML = '<i class="fa-solid fa-chevron-up me-2"></i>Ver menos opciones';
+                localStorage.setItem('dashboardMenuOpen', 'true');
+            } else {
+                menu.classList.add('menu-items-hidden');
+                btn.innerHTML = '<i class="fa-solid fa-chevron-down me-2"></i>Ver más opciones';
+                localStorage.setItem('dashboardMenuOpen', 'false');
+            }
+        }
+
+        function toggleMenuOculto() {
+            const menu = document.getElementById('menuOculto');
+            setMenuState(menu.classList.contains('menu-items-hidden'));
+        }
+
+        function shouldKeepMenuOpenByReferrer() {
+            if (!document.referrer) return false;
+            const pages = ['/kmeans', '/arbol-decision', '/regresion', '/regresion-multiple', '/admin/roles', '/admin/reservaciones'];
+            return pages.some(page => document.referrer.includes(page));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedMenuState = localStorage.getItem('dashboardMenuOpen');
+            if (savedMenuState === 'true' || (savedMenuState === null && shouldKeepMenuOpenByReferrer())) {
+                setMenuState(true);
+            } else {
+                setMenuState(false);
+            }
+
+            i18n.setTheme(i18n.getCurrentTheme());
+            i18n.setLanguage(localStorage.getItem('idioma') || 'es');
+            i18n.translatePage();
+        });
     </script>
 
 </body>

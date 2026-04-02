@@ -1,0 +1,422 @@
+<!-- admin_rol_detalle.html -->
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle de Rol | Admin</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    
+    <style>
+        :root {
+            --coffee-dark: #5c4033;
+            --gold-primary: #d4a574;
+            --bg-cream: #f5f1ee;
+            --text-light: #8b7b7b;
+        }
+        
+        body {
+            background-color: var(--bg-cream);
+            color: var(--coffee-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar-admin {
+            background: linear-gradient(135deg, var(--coffee-dark) 0%, #4a3728 100%);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .card-principal {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+        
+        .card-header-custom {
+            background: linear-gradient(135deg, var(--gold-primary) 0%, #c9955a 100%);
+            color: white;
+            padding: 25px;
+        }
+        
+        .card-header-custom h1 {
+            margin-bottom: 0;
+            font-weight: 700;
+        }
+        
+        .section-titulo {
+            color: var(--coffee-dark);
+            font-weight: 700;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--gold-primary);
+        }
+        
+        .permission-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background-color: white;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--gold-primary);
+        }
+        
+        .permission-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            margin-right: 12px;
+            accent-color: var(--gold-primary);
+        }
+        
+        .permission-item label {
+            margin: 0;
+            cursor: pointer;
+            flex: 1;
+        }
+        
+        .usuario-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background-color: var(--bg-cream);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .usuario-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--gold-primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-weight: bold;
+        }
+        
+        .usuario-info {
+            flex: 1;
+        }
+        
+        .usuario-info p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        
+        .usuario-info strong {
+            display: block;
+            color: var(--coffee-dark);
+        }
+        
+        .usuario-info small {
+            color: var(--text-light);
+        }
+        
+        .badge-estado {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        
+        .badge-activo {
+            background-color: #22c55e;
+            color: white;
+        }
+        
+        .badge-inactivo {
+            background-color: #ef4444;
+            color: white;
+        }
+        
+        .btn-custom {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        
+        .btn-primary-custom {
+            background-color: var(--gold-primary);
+            color: white;
+        }
+        
+        .btn-primary-custom:hover {
+            background-color: #c9955a;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary-custom {
+            background-color: #6b7280;
+            color: white;
+        }
+        
+        .btn-secondary-custom:hover {
+            background-color: #4b5563;
+        }
+        
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            padding: 10px 12px;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: var(--gold-primary);
+            box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.1);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-light);
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            color: var(--gold-primary);
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-expand-lg navbar-admin">
+        <div class="container-fluid">
+            <a class="navbar-brand text-white" href="/dashboard">
+                <i class="fa-solid fa-mug-hot me-2"></i>Nube de Cacao - Admin
+            </a>
+            <div class="d-flex align-items-center gap-3 text-white">
+                <span><i class="fa-solid fa-user-circle me-2"></i>{{ usuario }}</span>
+                <a href="/perfil" class="text-white text-decoration-none">
+                    <i class="fa-solid fa-id-card"></i>
+                </a>
+                <a href="/logout" class="text-white text-decoration-none">
+                    <i class="fa-solid fa-sign-out-alt"></i>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <a href="/admin/roles" class="text-decoration-none text-muted">
+                    <i class="fa-solid fa-arrow-left me-2"></i>Volver a Gestión de Roles
+                </a>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- CARD PRINCIPAL -->
+                <div class="card card-principal mb-4">
+                    <div class="card-header-custom">
+                        <h1>
+                            <i class="fa-solid fa-users-gear me-3"></i>{{ rol.nombre }}
+                        </h1>
+                        <p class="mb-0" style="opacity: 0.95;">{{ rol.descripcion }}</p>
+                        {% if rol.estado == 'activo' %}
+                            <span class="badge badge-estado badge-activo">
+                                <i class="fa-solid fa-check-circle me-1"></i>Activo
+                            </span>
+                        {% else %}
+                            <span class="badge badge-estado badge-inactivo">
+                                <i class="fa-solid fa-circle-xmark me-1"></i>Inactivo
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="card-body p-5">
+                        <!-- INFORMACIÓN GENERAL -->
+                        <h3 class="section-titulo">
+                            <i class="fa-solid fa-circle-info me-2"></i>Información General
+                        </h3>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <p><strong>ID del Rol:</strong></p>
+                                <code>{{ rol._id }}</code>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Estado:</strong></p>
+                                <p>
+                                    {% if rol.estado == 'activo' %}
+                                        <span class="badge bg-success">Activo</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactivo</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- PERMISOS -->
+                        <h3 class="section-titulo">
+                            <i class="fa-solid fa-lock me-2"></i>Configurar Permisos
+                        </h3>
+                        <form method="POST" action="/admin/roles/permisos/{{ rol._id }}">
+                            <div class="mb-4">
+                                <div class="permission-item">
+                                    <input type="checkbox" id="ver_dashboard" name="ver_dashboard"
+                                        {% if rol.permisos.ver_dashboard %}checked{% endif %}>
+                                    <label for="ver_dashboard">
+                                        <strong>Ver Dashboard</strong>
+                                        <br>
+                                        <small style="color: var(--text-light);">Acceso al panel principal de administración</small>
+                                    </label>
+                                </div>
+
+                                <div class="permission-item">
+                                    <input type="checkbox" id="registrar_venta" name="registrar_venta"
+                                        {% if rol.permisos.registrar_venta %}checked{% endif %}>
+                                    <label for="registrar_venta">
+                                        <strong>Registrar Venta</strong>
+                                        <br>
+                                        <small style="color: var(--text-light);">Crear y registrar nuevas ventas</small>
+                                    </label>
+                                </div>
+
+                                <div class="permission-item">
+                                    <input type="checkbox" id="ver_analisis" name="ver_analisis"
+                                        {% if rol.permisos.ver_analisis %}checked{% endif %}>
+                                    <label for="ver_analisis">
+                                        <strong>Ver Análisis</strong>
+                                        <br>
+                                        <small style="color: var(--text-light);">Acceso a reportes y análisis de datos</small>
+                                    </label>
+                                </div>
+
+                                <div class="permission-item">
+                                    <input type="checkbox" id="generar_respaldos" name="generar_respaldos"
+                                        {% if rol.permisos.generar_respaldos %}checked{% endif %}>
+                                    <label for="generar_respaldos">
+                                        <strong>Generar Respaldos</strong>
+                                        <br>
+                                        <small style="color: var(--text-light);">Crear respaldos de bases de datos</small>
+                                    </label>
+                                </div>
+
+                                <div class="permission-item">
+                                    <input type="checkbox" id="restaurar_respaldos" name="restaurar_respaldos"
+                                        {% if rol.permisos.restaurar_respaldos %}checked{% endif %}>
+                                    <label for="restaurar_respaldos">
+                                        <strong>Restaurar Respaldos</strong>
+                                        <br>
+                                        <small style="color: var(--text-light);">Recuperar datos desde respaldos</small>
+                                    </label>
+                                </div>
+
+                                <div class="permission-item">
+                                    <input type="checkbox" id="gestionar_usuarios" name="gestionar_usuarios"
+                                        {% if rol.permisos.gestionar_usuarios %}checked{% endif %}>
+                                    <label for="gestionar_usuarios">
+                                        <strong>Gestionar Usuarios</strong>
+                                        <br>
+                                        <small style="color: var(--text-light);">Crear, editar y eliminar usuarios</small>
+                                    </label>
+                                </div>
+
+                                <div class="permission-item">
+                                    <input type="checkbox" id="gestionar_roles" name="gestionar_roles"
+                                        {% if rol.permisos.gestionar_roles %}checked{% endif %}>
+                                    <label for="gestionar_roles">
+                                        <strong>Gestionar Roles</strong>
+                                        <br>
+                                        <small style="color: var(--text-light);">Administrar roles y permisos del sistema</small>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-custom btn-primary-custom">
+                                    <i class="fa-solid fa-save me-2"></i>Guardar Permisos
+                                </button>
+                                <a href="/admin/roles" class="btn btn-custom btn-secondary-custom">
+                                    <i class="fa-solid fa-times me-2"></i>Cancelar
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SIDEBAR: USUARIOS CON ESTE ROL -->
+            <div class="col-lg-4">
+                <div class="card card-principal">
+                    <div class="card-header" style="background-color: var(--coffee-dark); color: white; padding: 20px;">
+                        <h5 class="mb-0">
+                            <i class="fa-solid fa-users me-2"></i>Usuarios con este Rol
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        {% if usuarios %}
+                            <div class="mb-3">
+                                <span class="badge bg-primary">{{ usuarios|length }} usuario(s)</span>
+                            </div>
+                            {% for usuario in usuarios %}
+                                <div class="usuario-item">
+                                    <div class="usuario-avatar">
+                                        {{ usuario.nombre[:1].upper() }}
+                                    </div>
+                                    <div class="usuario-info">
+                                        <strong>{{ usuario.nombre }}</strong>
+                                        <small>{{ usuario.correo }}</small>
+                                        {% if usuario.telefono %}
+                                            <p><small><i class="fa-solid fa-phone me-1"></i>{{ usuario.telefono }}</small></p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">
+                                <i class="fa-solid fa-user-slash"></i>
+                                <p>
+                                    No hay usuarios con este rol aún
+                                </p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- METADATOS -->
+                <div class="card card-principal mt-4">
+                    <div class="card-header" style="background-color: var(--coffee-dark); color: white; padding: 20px;">
+                        <h5 class="mb-0">
+                            <i class="fa-solid fa-clock me-2"></i>Información del Sistema
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <p>
+                            <strong>Creado:</strong><br>
+                            <small class="text-muted">{{ rol.fecha_creacion }}</small>
+                        </p>
+                        <p class="mt-3">
+                            <strong>Actualizado:</strong><br>
+                            <small class="text-muted">{{ rol.fecha_actualizacion }}</small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

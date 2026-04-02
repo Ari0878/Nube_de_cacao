@@ -78,6 +78,24 @@ class I18n {
     getCurrentLanguage() {
         return this.currentLang;
     }
+
+    getCurrentTheme() {
+        return localStorage.getItem('theme') || 'light';
+    }
+
+    setTheme(theme) {
+        if (theme === 'dark') {
+            document.body.classList.add('dark-mode');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.body.classList.remove('dark-mode');
+            localStorage.setItem('theme', 'light');
+        }
+    }
+
+    toggleTheme() {
+        this.setTheme(this.getCurrentTheme() === 'dark' ? 'light' : 'dark');
+    }
 }
 
 // Instancia global
@@ -87,10 +105,19 @@ const i18n = new I18n();
 document.addEventListener('DOMContentLoaded', async () => {
     await i18n.init();
     i18n.translatePage();
-    
+    i18n.setTheme(i18n.getCurrentTheme());
+
     // Actualizar selectores de idioma si existen
     const langSelectors = document.querySelectorAll('select[name="idioma"]');
     langSelectors.forEach(selector => {
         selector.value = i18n.getCurrentLanguage();
+    });
+
+    // Botón global de cambio de tema (si existe)
+    const themeToggles = document.querySelectorAll('#theme-toggle');
+    themeToggles.forEach(toggleBtn => {
+        toggleBtn.addEventListener('click', () => {
+            i18n.toggleTheme();
+        });
     });
 });
